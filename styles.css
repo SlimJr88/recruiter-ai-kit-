@@ -8,11 +8,11 @@
 }
 
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1d4ed8;
-    --primary-light: #dbeafe;
-    --accent: #7c3aed;
-    --accent-light: #ede9fe;
+    --primary: #512178;
+    --primary-dark: #600d87;
+    --primary-light: #f3e8ff;
+    --accent: #512178;
+    --accent-light: #f3e8ff;
     --danger: #ef4444;
     --danger-light: #fee2e2;
     --success: #22c55e;
@@ -43,7 +43,7 @@ body {
 
 /* === Header === */
 header {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: linear-gradient(135deg, #512178, #600d87);
     color: white;
     padding: 40px 0 30px;
     text-align: center;
