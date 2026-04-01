@@ -391,29 +391,35 @@ function buildGeneratorQuery() {
         parts.push('site:github.com');
     }
 
-    // Titles
+    // Titles (OR - mindestens ein Titel muss passen)
     if (extracted.titles.length > 0) {
         parts.push(orGroup(extracted.titles));
     }
 
-    // Must-have skills (AND)
-    extracted.mustSkills.forEach(skill => {
-        parts.push(quote(skill));
-    });
+    // Must-have skills: Top 2 als AND, Rest als OR-Gruppe
+    if (extracted.mustSkills.length > 0) {
+        if (extracted.mustSkills.length <= 2) {
+            // 1-2 Skills: AND ist ok
+            extracted.mustSkills.forEach(skill => {
+                parts.push(quote(skill));
+            });
+        } else {
+            // 3+: Top 2 AND, Rest als OR-Gruppe
+            parts.push(quote(extracted.mustSkills[0]));
+            parts.push(quote(extracted.mustSkills[1]));
+            const restSkills = extracted.mustSkills.slice(2);
+            parts.push(orGroup(restSkills));
+        }
+    }
 
-    // Nice-to-have skills (OR group)
+    // Nice-to-have skills (OR - mindestens einer reicht)
     if (extracted.niceSkills.length > 0) {
         parts.push(orGroup(extracted.niceSkills));
     }
 
-    // Locations
+    // Locations (OR)
     if (extracted.locations.length > 0) {
         parts.push(orGroup(extracted.locations));
-    }
-
-    // Experience
-    if (extracted.experience.length > 0) {
-        parts.push(`"${extracted.experience[0]}"`);
     }
 
     let query = parts.join(' AND ');
@@ -616,7 +622,15 @@ function initBuilder() {
         const parts = [];
 
         if (builderState.titles.length > 0) parts.push(orGroup(builderState.titles));
-        builderState.mustSkills.forEach(s => parts.push(quote(s)));
+        if (builderState.mustSkills.length > 0) {
+            if (builderState.mustSkills.length <= 2) {
+                builderState.mustSkills.forEach(s => parts.push(quote(s)));
+            } else {
+                parts.push(quote(builderState.mustSkills[0]));
+                parts.push(quote(builderState.mustSkills[1]));
+                parts.push(orGroup(builderState.mustSkills.slice(2)));
+            }
+        }
         if (builderState.niceSkills.length > 0) parts.push(orGroup(builderState.niceSkills));
         if (builderState.locations.length > 0) parts.push(orGroup(builderState.locations));
         if (builderState.companies.length > 0) parts.push(orGroup(builderState.companies));
