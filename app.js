@@ -416,20 +416,12 @@ function buildGeneratorQuery() {
         parts.push(`"${extracted.experience[0]}"`);
     }
 
-    let andOp = 'AND';
-    let notOp = 'NOT';
+    let query = parts.join(' AND ');
 
-    if (currentPlatform === 'xing') {
-        andOp = 'UND';
-        notOp = 'NICHT';
-    }
-
-    let query = parts.join(` ${andOp} `);
-
-    // Exclusions
+    // Exclusions with NOT
     if (extracted.excludes.length > 0) {
         extracted.excludes.forEach(term => {
-            query += ` ${notOp} ${quote(term)}`;
+            query += ` NOT ${quote(term)}`;
         });
     }
 
@@ -660,10 +652,11 @@ function orGroup(terms) {
 function highlightBoolean(str) {
     const escaped = escapeHtml(str);
     return escaped
-        .replace(/\b(AND|OR|NOT|UND|ODER|NICHT)\b/g, (m) => {
-            if (m === 'NOT' || m === 'NICHT') return `<span class="neg">${m}</span>`;
+        .replace(/\b(AND|OR|NOT)\b/g, (m) => {
+            if (m === 'NOT') return `<span class="neg">${m}</span>`;
             return `<span class="kw">${m}</span>`;
         })
+        .replace(/([()])/g, '<span class="kw">$1</span>')
         .replace(/&quot;([^&]*?)&quot;/g, '<span class="str">"$1"</span>')
         .replace(/"([^"]*?)"/g, '<span class="str">"$1"</span>');
 }

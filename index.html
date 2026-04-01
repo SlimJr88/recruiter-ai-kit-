@@ -244,13 +244,33 @@ Standort: Berlin oder München (hybrid)"></textarea>
         <section class="card">
             <h2>Boolean-Operatoren Spickzettel</h2>
             <div class="cheat-sheet">
-                <div class="cheat-item"><code>AND</code><span>Beide Begriffe müssen vorkommen</span><em>"Java" AND "Spring"</em></div>
-                <div class="cheat-item"><code>OR</code><span>Mindestens ein Begriff</span><em>"Developer" OR "Entwickler"</em></div>
-                <div class="cheat-item"><code>NOT</code><span>Begriff ausschließen</span><em>"Engineer" NOT "Junior"</em></div>
-                <div class="cheat-item"><code>"..."</code><span>Exakte Wortgruppe</span><em>"Software Engineer"</em></div>
-                <div class="cheat-item"><code>( )</code><span>Gruppierung</span><em>("Java" OR "Python") AND "Senior"</em></div>
-                <div class="cheat-item"><code>site:</code><span>Google X-Ray Suche</span><em>site:linkedin.com/in "Developer"</em></div>
+                <div class="cheat-item">
+                    <code>AND</code>
+                    <span>Beide Begriffe m&uuml;ssen vorkommen. Verengt die Suche.</span>
+                    <em>"Java" AND "Spring Boot"</em>
+                </div>
+                <div class="cheat-item">
+                    <code>OR</code>
+                    <span>Mindestens einer der Begriffe muss vorkommen. Erweitert die Suche.</span>
+                    <em>"Developer" OR "Entwickler" OR "Engineer"</em>
+                </div>
+                <div class="cheat-item">
+                    <code>NOT</code>
+                    <span>Schliesst einen Begriff aus. Verengt die Suche.</span>
+                    <em>"Engineer" NOT "Junior" NOT "Intern"</em>
+                </div>
+                <div class="cheat-item">
+                    <code>( )</code>
+                    <span>Nesting &ndash; Gruppierung und Verschachtelung von Operatoren. Bestimmt die Reihenfolge der Auswertung.</span>
+                    <em>("Java" OR "Python") AND ("Senior" OR "Lead") NOT "Intern"</em>
+                </div>
             </div>
+
+            <h3 style="margin-top:20px;margin-bottom:12px;font-size:1rem;">Nesting &ndash; Beispiel</h3>
+            <div class="result-box" style="font-size:0.85rem;">
+                <span class="kw">(</span><span class="str">"Software Engineer"</span> <span class="kw">OR</span> <span class="str">"Developer"</span> <span class="kw">OR</span> <span class="str">"Entwickler"</span><span class="kw">)</span> <span class="kw">AND</span> <span class="kw">(</span><span class="str">"Java"</span> <span class="kw">OR</span> <span class="str">"Python"</span><span class="kw">)</span> <span class="kw">AND</span> <span class="kw">(</span><span class="str">"Berlin"</span> <span class="kw">OR</span> <span class="str">"M&uuml;nchen"</span><span class="kw">)</span> <span class="neg">NOT</span> <span class="str">"Praktikant"</span> <span class="neg">NOT</span> <span class="str">"Junior"</span>
+            </div>
+            <p style="margin-top:10px;font-size:0.85rem;color:#64748b;">Durch Nesting (Klammern) werden OR-Gruppen gebildet und mit AND verkn&uuml;pft. So entsteht eine pr&auml;zise Suche: Jobtitel OR Jobtitel AND Skill OR Skill AND Standort OR Standort NOT Ausschluss.</p>
         </section>
     </main>
 
