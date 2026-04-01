@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boolean Search Generator - Recruiter AI Kit</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Recruiter Boolean Search Generator</h1>
+            <p class="subtitle">Stellenbeschreibung einfügen &rarr; Boolean-Suche generieren &rarr; Kandidaten finden</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" data-tab="generator">Stellenbeschreibung &rarr; Boolean</button>
+            <button class="tab" data-tab="builder">Manueller Builder</button>
+        </div>
+
+        <!-- TAB 1: Job Description Generator -->
+        <div class="tab-content active" id="tab-generator">
+            <!-- Step 1: Input -->
+            <section class="card">
+                <h2>1. Stellenbeschreibung einfügen</h2>
+                <textarea id="jobDescription" rows="10" placeholder="Füge hier die komplette Stellenbeschreibung ein...
+
+Beispiel:
+Wir suchen einen erfahrenen Senior Software Engineer (m/w/d) mit Schwerpunkt Backend-Entwicklung.
+
+Anforderungen:
+- 5+ Jahre Erfahrung in Java oder Kotlin
+- Erfahrung mit Spring Boot und Microservices
+- Kenntnisse in Docker und Kubernetes
+- Erfahrung mit relationalen Datenbanken (PostgreSQL, MySQL)
+- Nice-to-have: AWS oder Azure Cloud-Erfahrung
+- Fließend Deutsch und Englisch
+
+Standort: Berlin oder München (hybrid)"></textarea>
+                <div class="generate-actions">
+                    <button class="btn btn-primary btn-large" id="generateBtn">Boolean-Suche generieren</button>
+                    <button class="btn btn-secondary" id="clearJobBtn">Leeren</button>
+                </div>
+            </section>
+
+            <!-- Step 2: Extracted Keywords -->
+            <section class="card" id="extractedSection" style="display:none;">
+                <h2>2. Extrahierte Schlüsselbegriffe</h2>
+                <p class="section-hint">Klicke auf Begriffe, um sie zu entfernen. Bearbeite die Kategorien nach Bedarf.</p>
+
+                <div class="extracted-group">
+                    <label>Jobtitel</label>
+                    <div class="editable-tags" id="exTitles"></div>
+                </div>
+                <div class="extracted-group">
+                    <label>Must-Have Skills</label>
+                    <div class="editable-tags" id="exMustSkills"></div>
+                </div>
+                <div class="extracted-group">
+                    <label>Nice-to-Have Skills</label>
+                    <div class="editable-tags" id="exNiceSkills"></div>
+                </div>
+                <div class="extracted-group">
+                    <label>Standort</label>
+                    <div class="editable-tags" id="exLocations"></div>
+                </div>
+                <div class="extracted-group">
+                    <label>Erfahrung</label>
+                    <div class="editable-tags" id="exExperience"></div>
+                </div>
+                <div class="extracted-group">
+                    <label>Ausschlussbegriffe</label>
+                    <div class="editable-tags" id="exExcludes"></div>
+                </div>
+
+                <div class="add-keyword-row">
+                    <select id="addKeywordCategory">
+                        <option value="titles">Jobtitel</option>
+                        <option value="mustSkills">Must-Have Skill</option>
+                        <option value="niceSkills">Nice-to-Have Skill</option>
+                        <option value="locations">Standort</option>
+                        <option value="excludes">Ausschluss</option>
+                    </select>
+                    <input type="text" id="addKeywordInput" placeholder="Begriff hinzufügen...">
+                    <button class="btn btn-primary" id="addKeywordBtn">+</button>
+                </div>
+
+                <button class="btn btn-primary btn-large" id="regenerateBtn" style="margin-top:16px;">Boolean-String aktualisieren</button>
+            </section>
+
+            <!-- Platform Selection -->
+            <section class="card" id="platformSection" style="display:none;">
+                <h2>3. Plattform & Ergebnis</h2>
+                <div class="platform-buttons">
+                    <button class="platform-btn active" data-platform="linkedin">LinkedIn</button>
+                    <button class="platform-btn" data-platform="google">Google X-Ray</button>
+                    <button class="platform-btn" data-platform="github">GitHub</button>
+                    <button class="platform-btn" data-platform="xing">XING</button>
+                </div>
+
+                <!-- Result Box -->
+                <div class="result-box" id="resultBox">
+                    <p class="placeholder-text">Generiere zuerst einen Boolean-String...</p>
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" id="copyBtn">In Zwischenablage kopieren</button>
+                    <button class="btn btn-secondary" id="openLinkedInBtn">In LinkedIn öffnen</button>
+                </div>
+                <div class="copy-toast" id="copyToast">In die Zwischenablage kopiert!</div>
+            </section>
+
+            <!-- Search Links -->
+            <section class="card" id="searchLinksSection" style="display:none;">
+                <h2>4. Direkt suchen</h2>
+                <div class="search-links">
+                    <a id="linkLinkedIn" class="search-link" target="_blank" rel="noopener">
+                        <span class="search-link-icon">in</span>
+                        <span>LinkedIn durchsuchen</span>
+                    </a>
+                    <a id="linkGoogle" class="search-link" target="_blank" rel="noopener">
+                        <span class="search-link-icon">G</span>
+                        <span>Google X-Ray Suche</span>
+                    </a>
+                    <a id="linkGitHub" class="search-link" target="_blank" rel="noopener">
+                        <span class="search-link-icon">&lt;/&gt;</span>
+                        <span>GitHub durchsuchen</span>
+                    </a>
+                </div>
+            </section>
+        </div>
+
+        <!-- TAB 2: Manual Builder -->
+        <div class="tab-content" id="tab-builder">
+            <section class="card">
+                <h2>Suchkriterien definieren</h2>
+
+                <div class="search-group">
+                    <label>Jobtitel / Rolle</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="titleTags"></div>
+                        <input type="text" id="titleInput" placeholder='z.B. "Software Engineer", "Entwickler"'>
+                    </div>
+                    <small>Enter drücken zum Hinzufügen. Begriffe werden mit OR verknüpft.</small>
+                </div>
+
+                <div class="search-group">
+                    <label>Must-Have Skills (AND)</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="mustSkillTags"></div>
+                        <input type="text" id="mustSkillInput" placeholder='z.B. "Java", "React", "AWS"'>
+                    </div>
+                    <small>Alle Skills müssen vorhanden sein.</small>
+                </div>
+
+                <div class="search-group">
+                    <label>Nice-to-Have Skills (OR)</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="niceSkillTags"></div>
+                        <input type="text" id="niceSkillInput" placeholder='z.B. "Docker", "Kubernetes"'>
+                    </div>
+                    <small>Mindestens einer dieser Skills sollte vorhanden sein.</small>
+                </div>
+
+                <div class="search-group">
+                    <label>Standort</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="locationTags"></div>
+                        <input type="text" id="locationInput" placeholder='z.B. "Berlin", "München"'>
+                    </div>
+                </div>
+
+                <div class="search-group">
+                    <label>Ausschlussbegriffe (NOT)</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="excludeTags"></div>
+                        <input type="text" id="excludeInput" placeholder='z.B. "Intern", "Praktikant"'>
+                    </div>
+                </div>
+
+                <div class="search-group">
+                    <label>Unternehmen</label>
+                    <div class="tag-input-wrapper">
+                        <div class="tags" id="companyTags"></div>
+                        <input type="text" id="companyInput" placeholder='z.B. "SAP", "Siemens"'>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Templates -->
+            <section class="card">
+                <h2>Vorlagen</h2>
+                <div class="templates-grid">
+                    <button class="template-btn" data-template="fullstack"><span class="template-icon">💻</span><span>Fullstack Developer</span></button>
+                    <button class="template-btn" data-template="datascience"><span class="template-icon">📊</span><span>Data Scientist</span></button>
+                    <button class="template-btn" data-template="devops"><span class="template-icon">⚙️</span><span>DevOps Engineer</span></button>
+                    <button class="template-btn" data-template="pm"><span class="template-icon">📋</span><span>Product Manager</span></button>
+                    <button class="template-btn" data-template="ux"><span class="template-icon">🎨</span><span>UX Designer</span></button>
+                    <button class="template-btn" data-template="sales"><span class="template-icon">📈</span><span>Sales Manager</span></button>
+                    <button class="template-btn" data-template="marketing"><span class="template-icon">📣</span><span>Marketing Manager</span></button>
+                    <button class="template-btn" data-template="hr"><span class="template-icon">👥</span><span>HR Manager</span></button>
+                </div>
+            </section>
+
+            <!-- Manual Editor -->
+            <section class="card">
+                <h2>Manueller Editor</h2>
+                <div class="operator-buttons">
+                    <button class="op-btn" data-op="AND">AND</button>
+                    <button class="op-btn" data-op="OR">OR</button>
+                    <button class="op-btn" data-op="NOT">NOT</button>
+                    <button class="op-btn" data-op="()">(  )</button>
+                    <button class="op-btn" data-op='""'>"  "</button>
+                </div>
+                <textarea id="manualEditor" rows="4" placeholder="Boolean-String hier bearbeiten..."></textarea>
+            </section>
+
+            <!-- Builder Result -->
+            <section class="card result-card">
+                <h2>Ergebnis</h2>
+                <div class="result-box" id="builderResultBox">
+                    <p class="placeholder-text">Füge Suchkriterien hinzu...</p>
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" id="builderCopyBtn">Kopieren</button>
+                    <button class="btn btn-secondary" id="builderResetBtn">Zurücksetzen</button>
+                </div>
+                <div class="copy-toast" id="builderCopyToast">Kopiert!</div>
+            </section>
+        </div>
+
+        <!-- History (shared) -->
+        <section class="card">
+            <h2>Suchverlauf</h2>
+            <div id="historyList" class="history-list">
+                <p class="placeholder-text">Noch keine gespeicherten Suchen.</p>
+            </div>
+            <button class="btn btn-secondary" id="clearHistoryBtn" style="display:none;">Verlauf löschen</button>
+        </section>
+
+        <!-- Cheat Sheet -->
+        <section class="card">
+            <h2>Boolean-Operatoren Spickzettel</h2>
+            <div class="cheat-sheet">
+                <div class="cheat-item"><code>AND</code><span>Beide Begriffe müssen vorkommen</span><em>"Java" AND "Spring"</em></div>
+                <div class="cheat-item"><code>OR</code><span>Mindestens ein Begriff</span><em>"Developer" OR "Entwickler"</em></div>
+                <div class="cheat-item"><code>NOT</code><span>Begriff ausschließen</span><em>"Engineer" NOT "Junior"</em></div>
+                <div class="cheat-item"><code>"..."</code><span>Exakte Wortgruppe</span><em>"Software Engineer"</em></div>
+                <div class="cheat-item"><code>( )</code><span>Gruppierung</span><em>("Java" OR "Python") AND "Senior"</em></div>
+                <div class="cheat-item"><code>site:</code><span>Google X-Ray Suche</span><em>site:linkedin.com/in "Developer"</em></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Recruiter Boolean Search Generator &mdash; Recruiter AI Kit</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
