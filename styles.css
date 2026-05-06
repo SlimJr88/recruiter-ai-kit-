@@ -637,6 +637,103 @@ textarea#manualEditor:focus {
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
 }
 
+/* === AI Workflow Tab === */
+textarea#workflowInput {
+    width: 100%;
+    padding: 16px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+textarea#workflowInput:focus {
+    border-color: var(--accent);
+}
+
+.btn-accent {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+}
+
+.btn-accent:hover {
+    opacity: 0.9;
+}
+
+.wf-card {
+    border-left: 4px solid var(--border);
+    transition: border-color 0.2s;
+}
+
+.wf-card:nth-child(1) { border-left-color: var(--primary); }
+.wf-card:nth-child(2) { border-left-color: var(--accent); }
+.wf-card:nth-child(3) { border-left-color: #16a34a; }
+.wf-card:nth-child(4) { border-left-color: #d97706; }
+
+.wf-section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.wf-section-header h2 {
+    margin-bottom: 4px;
+}
+
+.wf-section-header .section-hint {
+    margin-bottom: 0;
+}
+
+.wf-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.badge-blue   { background: var(--primary-light); color: var(--primary); }
+.badge-purple { background: var(--accent-light);  color: var(--accent); }
+.badge-green  { background: #dcfce7; color: #16a34a; }
+.badge-orange { background: #fef3c7; color: #d97706; }
+
+.wf-output-box {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    font-size: 0.92rem;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    min-height: 80px;
+    color: var(--text);
+}
+
+.wf-post-box {
+    font-size: 0.93rem;
+    line-height: 1.9;
+}
+
+.wf-mono-box {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.82rem;
+    background: #1e293b;
+    color: #e2e8f0;
+    border-color: transparent;
+    line-height: 1.6;
+}
+
 /* === Footer === */
 footer {
     text-align: center;

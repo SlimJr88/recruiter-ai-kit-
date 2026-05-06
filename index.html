@@ -3,26 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boolean Search Generator - Recruiter AI Kit</title>
+    <title>Recruiter AI Kit</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
         <div class="container">
-            <h1>Recruiter Boolean Search Generator</h1>
-            <p class="subtitle">Stellenbeschreibung einfügen &rarr; Boolean-Suche generieren &rarr; Kandidaten finden</p>
+            <h1>Recruiter AI Kit</h1>
+            <p class="subtitle">AI-powered recruiting workflow &mdash; Boolean search, anonymized JDs, LinkedIn posts &amp; image prompts</p>
         </div>
     </header>
 
     <main class="container">
         <!-- Tab Navigation -->
         <div class="tabs">
-            <button class="tab active" data-tab="generator">Stellenbeschreibung &rarr; Boolean</button>
-            <button class="tab" data-tab="builder">Manueller Builder</button>
+            <button class="tab active" data-tab="workflow">AI Workflow</button>
+            <button class="tab" data-tab="generator">Boolean Generator</button>
+            <button class="tab" data-tab="builder">Manual Builder</button>
+        </div>
+
+        <!-- TAB 0: AI Workflow -->
+        <div class="tab-content active" id="tab-workflow">
+
+            <!-- Input -->
+            <section class="card">
+                <h2>Raw Project / Job Description Input</h2>
+                <p class="section-hint">Paste your complete, unedited job or project description. The workflow generates all four outputs automatically — no editing required.</p>
+                <textarea id="workflowInput" rows="12" placeholder="Paste your raw job or project description here...
+
+Example:
+We at TechCorp GmbH are looking for a Senior Backend Engineer to join our growing team in Berlin. The ideal candidate has 5+ years of experience in Java or Kotlin, deep knowledge of microservices architecture, and hands-on experience with Docker and Kubernetes.
+
+Responsibilities:
+- Design and implement scalable backend services
+- Collaborate with product and frontend teams
+- Lead code reviews and mentor junior engineers
+
+Requirements:
+- 5+ years Java or Kotlin
+- Spring Boot, Microservices
+- PostgreSQL or MySQL
+- Nice to have: AWS or Azure
+
+Salary: 90.000 – 110.000 EUR p.a.
+Location: Berlin (hybrid) or Remote
+Contact: jobs@techcorp.de"></textarea>
+                <div class="generate-actions">
+                    <button class="btn btn-accent btn-large" id="workflowRunBtn">Generate All Outputs</button>
+                    <button class="btn btn-secondary" id="workflowClearBtn">Clear</button>
+                </div>
+            </section>
+
+            <!-- Results container -->
+            <div id="workflowResults" style="display:none;">
+
+                <!-- Section 1: Anonymized Description -->
+                <section class="card wf-card">
+                    <div class="wf-section-header">
+                        <div class="wf-badge badge-blue">1</div>
+                        <div>
+                            <h2>Anonymized Job Description</h2>
+                            <p class="section-hint">Identifiable company, client, and sensitive details removed. Role clarity, responsibilities, and requirements preserved.</p>
+                        </div>
+                    </div>
+                    <div class="wf-output-box" id="wfAnonymized"></div>
+                    <div class="result-actions">
+                        <button class="btn btn-primary wf-copy-btn" data-target="wfAnonymized">Copy Description</button>
+                    </div>
+                </section>
+
+                <!-- Section 2: Boolean Search -->
+                <section class="card wf-card">
+                    <div class="wf-section-header">
+                        <div class="wf-badge badge-purple">2</div>
+                        <div>
+                            <h2>Boolean Search String</h2>
+                            <p class="section-hint">Optimized for LinkedIn Recruiter and ATS. Includes synonyms, logical operators, and seniority filters.</p>
+                        </div>
+                    </div>
+                    <div class="result-box" id="wfBoolean"><p class="placeholder-text">Generating…</p></div>
+                    <textarea id="wfBooleanRaw" style="display:none;"></textarea>
+                    <div class="result-actions">
+                        <button class="btn btn-primary wf-copy-btn" data-target="wfBooleanRaw">Copy Boolean String</button>
+                        <a id="wfLinkedInSearch" class="btn btn-secondary" href="#" target="_blank" rel="noopener">Search on LinkedIn</a>
+                    </div>
+                </section>
+
+                <!-- Section 3: LinkedIn Post -->
+                <section class="card wf-card">
+                    <div class="wf-section-header">
+                        <div class="wf-badge badge-green">3</div>
+                        <div>
+                            <h2>LinkedIn Post</h2>
+                            <p class="section-hint">Engaging, concise post optimized for reach and candidate attraction. Ready to publish.</p>
+                        </div>
+                    </div>
+                    <div class="wf-output-box wf-post-box" id="wfLinkedIn"></div>
+                    <div class="result-actions">
+                        <button class="btn btn-primary wf-copy-btn" data-target="wfLinkedIn">Copy Post</button>
+                    </div>
+                </section>
+
+                <!-- Section 4: Image Prompt -->
+                <section class="card wf-card">
+                    <div class="wf-section-header">
+                        <div class="wf-badge badge-orange">4</div>
+                        <div>
+                            <h2>AI Image Generation Prompt</h2>
+                            <p class="section-hint">Compatible with Midjourney &amp; DALL·E. Aligned with the job role and LinkedIn post tone.</p>
+                        </div>
+                    </div>
+                    <div class="wf-output-box wf-mono-box" id="wfImagePrompt"></div>
+                    <div class="result-actions">
+                        <button class="btn btn-primary wf-copy-btn" data-target="wfImagePrompt">Copy Image Prompt</button>
+                    </div>
+                </section>
+
+            </div>
+            <div class="copy-toast" id="workflowToast">Copied to clipboard!</div>
         </div>
 
         <!-- TAB 1: Job Description Generator -->
-        <div class="tab-content active" id="tab-generator">
+        <div class="tab-content" id="tab-generator">
             <!-- Step 1: Input -->
             <section class="card">
                 <h2>1. Stellenbeschreibung einfügen</h2>
@@ -256,7 +358,7 @@ Standort: Berlin oder München (hybrid)"></textarea>
 
     <footer>
         <div class="container">
-            <p>Recruiter Boolean Search Generator &mdash; Recruiter AI Kit</p>
+            <p>Recruiter AI Kit &mdash; Boolean Search &middot; AI Workflow &middot; LinkedIn Post Generator</p>
         </div>
     </footer>
 
