@@ -158,6 +158,7 @@ const builderState = {
 // === DOM Ready ===
 document.addEventListener('DOMContentLoaded', () => {
     initTabs();
+    initWorkflow();
     initGenerator();
     initBuilder();
     renderHistory();
@@ -744,4 +745,477 @@ function renderHistory() {
         localStorage.removeItem('booleanSearchHistory');
         renderHistory();
     };
+}
+
+// =============================================
+// TAB 0: AI Recruiting Workflow
+// =============================================
+
+function initWorkflow() {
+    document.getElementById('workflowRunBtn').addEventListener('click', () => {
+        const text = document.getElementById('workflowInput').value.trim();
+        if (!text) return;
+        runWorkflow(text);
+    });
+
+    document.getElementById('workflowClearBtn').addEventListener('click', () => {
+        document.getElementById('workflowInput').value = '';
+        document.getElementById('workflowResults').style.display = 'none';
+    });
+
+    document.querySelectorAll('.wf-copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const el = document.getElementById(btn.dataset.target);
+            const text = el.tagName === 'TEXTAREA' ? el.value : (el.innerText || el.textContent);
+            navigator.clipboard.writeText(text.trim()).then(() => showToast('workflowToast'));
+        });
+    });
+}
+
+function runWorkflow(text) {
+    const runBtn = document.getElementById('workflowRunBtn');
+    runBtn.innerHTML = '<span class="spinner"></span>Generating…';
+    runBtn.disabled = true;
+
+    setTimeout(() => {
+        try {
+            // Reuse existing keyword extraction; snapshot result before any Tab 1 usage
+            extractKeywords(text);
+            const kw = {
+                titles:     [...extracted.titles],
+                mustSkills: [...extracted.mustSkills],
+                niceSkills: [...extracted.niceSkills],
+                locations:  [...extracted.locations],
+                experience: [...extracted.experience],
+                excludes:   [...extracted.excludes],
+            };
+
+            const anonymized  = wfAnonymize(text);
+            const boolStr     = wfBuildBoolean(kw);
+            const linkedInPost = wfBuildLinkedInPost(text, kw);
+            const imgPrompt   = wfBuildImagePrompt(kw);
+
+            // Section 1
+            document.getElementById('wfAnonymized').textContent = anonymized;
+
+            // Section 2
+            const boolEl = document.getElementById('wfBoolean');
+            boolEl.innerHTML = boolStr
+                ? highlightBoolean(boolStr)
+                : '<span style="color:#64748b">No keywords detected — please refine your input.</span>';
+            document.getElementById('wfBooleanRaw').value = boolStr;
+            const liLink = document.getElementById('wfLinkedInSearch');
+            liLink.href = boolStr
+                ? `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(boolStr)}`
+                : '#';
+
+            // Section 3
+            document.getElementById('wfLinkedIn').textContent = linkedInPost;
+
+            // Section 4
+            document.getElementById('wfImagePrompt').textContent = imgPrompt;
+
+            const resultsEl = document.getElementById('workflowResults');
+            resultsEl.style.display = 'block';
+            resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } finally {
+            runBtn.innerHTML = 'Generate All Outputs';
+            runBtn.disabled = false;
+        }
+    }, 250);
+}
+
+// ─── Section 1: Anonymization ────────────────────────────────────────────────
+
+function wfAnonymize(text) {
+    let r = text;
+
+    // URLs
+    r = r.replace(/https?:\/\/[^\s<>"']+/g, '[Company Website]');
+    r = r.replace(/\bwww\.[A-Za-z0-9\-]+\.[A-Za-z]{2,}[^\s]*/g, '[Company Website]');
+
+    // Email addresses
+    r = r.replace(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g, '[Contact Email]');
+
+    // Phone numbers (loose international pattern)
+    r = r.replace(/(\+?\d{1,3}[\s\-.])?(\(?\d{2,4}\)?[\s\-.])\d{3,4}[\s\-.]?\d{3,4}/g, '[Contact Phone]');
+
+    // Salary / compensation figures
+    r = r.replace(/\b(?:EUR|USD|GBP|CHF|€|\$|£|CHF)\s*[\d.,'\s]+(?:k|K)?\s*(?:EUR|USD|GBP|CHF|€|\$|£)?\s*(?:[-–]\s*[\d.,'\s]+(?:k|K)?\s*(?:EUR|USD|GBP|CHF|€|\$|£)?)?(?:\s*(?:per\s+year|p\.a\.|per\s+annum|annually|pro\s+Jahr|jährlich|\/year|\/yr|\/mo|monthly))?\b/g, '[Competitive Salary]');
+    r = r.replace(/\b[\d]{2,3}(?:[.,\s]\d{3})+\s*(?:EUR|USD|GBP|€|\$|£)\b/g, '[Competitive Salary]');
+
+    // Company legal entity names (suffix-anchored)
+    const legalSuffixes = [
+        'GmbH', 'AG', 'SE', 'KG', 'OHG', 'UG',
+        'e\\.V\\.', 'e\\.G\\.',
+        'Inc\\.?', 'LLC\\.?', 'Ltd\\.?', 'Corp\\.?',
+        'Plc\\.?', 'S\\.A\\.', 'B\\.V\\.', 'N\\.V\\.',
+        'Holdings?', 'Group', 'Technologies', 'Solutions', 'Systems',
+        'Services', 'Digital', 'Software', 'Consulting', 'Advisory',
+        'Ventures', 'Capital', 'Labs', 'Studio', 'Agency', 'Partners',
+    ].join('|');
+    const legalRe = new RegExp(
+        `\\b[A-Z][A-Za-z0-9&.\\-]+(\\s+[A-Z][A-Za-z0-9&.\\-]+){0,3}\\s+(?:${legalSuffixes})\\b`,
+        'g'
+    );
+    r = r.replace(legalRe, '[Company]');
+
+    // Street addresses
+    r = r.replace(
+        /\d+\s+[A-Z][a-z]+(?:\s+[A-Z]?[a-z]+){0,3}\s*,?\s*(?:Street|St\b|Avenue|Ave\b|Road|Rd\b|Boulevard|Blvd\b|Drive|Dr\b|Lane|Ln\b|Way|Court|Ct\b|Place|Pl\b|Straße|Strasse|Str\b|Gasse|Allee|Weg|Platz)\b/gi,
+        '[Office Address]'
+    );
+
+    // Contextual company names: "at/for/join/bei/für [ProperName]"
+    const knownOk = new Set([
+        ...SKILL_KEYWORDS.map(s => s.toLowerCase()),
+        'linkedin', 'github', 'gitlab', 'slack', 'zoom', 'teams', 'notion',
+        'jira', 'confluence', 'asana', 'trello', 'figma', 'hubspot', 'google',
+        'microsoft', 'amazon', 'apple', 'meta', 'netflix', 'shopify', 'stripe',
+    ]);
+    const prepRe = /\b(at|for|join|bei|für|von|mit)\s+([A-Z][A-Za-z0-9\-&.]+(?:\s+[A-Z][A-Za-z0-9\-&.]+)?)\b/g;
+    r = r.replace(prepRe, (match, prep, name) => {
+        const first = name.split(' ')[0].toLowerCase();
+        if (knownOk.has(first) || knownOk.has(name.toLowerCase())) return match;
+        // Skip if already anonymized
+        if (name.startsWith('[')) return match;
+        // Only replace what looks like a proper noun (not a seniority/role word)
+        const roleWords = new Set(['senior', 'junior', 'lead', 'head', 'chief', 'director',
+            'manager', 'engineer', 'developer', 'designer', 'analyst', 'consultant', 'specialist',
+            'remote', 'hybrid', 'team', 'our', 'your', 'their', 'the', 'a', 'an']);
+        if (roleWords.has(first)) return match;
+        return `${prep} [Company]`;
+    });
+
+    // "called/known as [Name]"
+    r = r.replace(/\b(?:called|known as)\s+([A-Z][A-Za-z0-9\s\-&.]{2,30})(?=[,.\s\n])/g, (m, name) => {
+        if (knownOk.has(name.trim().toLowerCase())) return m;
+        return m.replace(name, '[Company]');
+    });
+
+    // Collapse repeated placeholders
+    r = r.replace(/(\[Company\])(\s*\[Company\])+/g, '[Company]');
+    r = r.replace(/(\[Competitive Salary\])(\s*\[Competitive Salary\])+/g, '[Competitive Salary]');
+
+    return r.trim();
+}
+
+// ─── Section 2: Boolean Search ───────────────────────────────────────────────
+
+const TITLE_SYNONYMS = {
+    'Software Engineer':   ['Software Engineer', 'Software Developer', 'SWE'],
+    'Software Developer':  ['Software Developer', 'Software Engineer'],
+    'Frontend Developer':  ['Frontend Developer', 'Frontend Engineer', 'Front-End Developer'],
+    'Frontend Engineer':   ['Frontend Engineer', 'Frontend Developer', 'Front-End Engineer'],
+    'Backend Developer':   ['Backend Developer', 'Backend Engineer', 'Back-End Developer'],
+    'Backend Engineer':    ['Backend Engineer', 'Backend Developer'],
+    'Full Stack Developer':['Full Stack Developer', 'Fullstack Developer', 'Full-Stack Engineer'],
+    'Fullstack Developer': ['Fullstack Developer', 'Full Stack Developer', 'Full-Stack Developer'],
+    'Data Scientist':      ['Data Scientist', 'ML Engineer', 'Machine Learning Engineer'],
+    'Data Engineer':       ['Data Engineer', 'Analytics Engineer', 'Data Platform Engineer'],
+    'ML Engineer':         ['ML Engineer', 'Machine Learning Engineer', 'AI Engineer'],
+    'DevOps Engineer':     ['DevOps Engineer', 'SRE', 'Site Reliability Engineer', 'Platform Engineer'],
+    'Site Reliability Engineer': ['SRE', 'Site Reliability Engineer', 'DevOps Engineer'],
+    'Product Manager':     ['Product Manager', 'Product Owner', 'Technical Product Manager'],
+    'Product Owner':       ['Product Owner', 'Product Manager'],
+    'UX Designer':         ['UX Designer', 'Product Designer', 'UI/UX Designer'],
+    'UI Designer':         ['UI Designer', 'UX Designer', 'Visual Designer'],
+    'HR Manager':          ['HR Manager', 'HR Business Partner', 'People Manager'],
+    'Recruiter':           ['Recruiter', 'Talent Acquisition Specialist', 'Talent Acquisition Manager'],
+    'Sales Manager':       ['Sales Manager', 'Account Executive', 'Business Development Manager'],
+    'Account Executive':   ['Account Executive', 'Sales Manager', 'Business Development Representative'],
+};
+
+function wfBuildBoolean(kw) {
+    const parts = [];
+
+    if (kw.titles.length > 0) {
+        const expanded = new Set(kw.titles);
+        kw.titles.forEach(t => {
+            const syns = TITLE_SYNONYMS[t];
+            if (syns) syns.forEach(s => expanded.add(s));
+        });
+        parts.push(orGroup([...expanded].slice(0, 6)));
+    }
+
+    kw.mustSkills.forEach(skill => parts.push(quote(skill)));
+
+    if (kw.niceSkills.length > 0) {
+        parts.push(orGroup(kw.niceSkills));
+    }
+
+    if (kw.locations.length > 0) {
+        parts.push(orGroup(kw.locations));
+    }
+
+    if (kw.experience.length > 0) {
+        parts.push(`"${kw.experience[0]}"`);
+    }
+
+    let query = parts.join(' AND ');
+
+    kw.excludes.forEach(term => {
+        query += ` NOT ${quote(term)}`;
+    });
+
+    return query;
+}
+
+// ─── Section 3: LinkedIn Post ────────────────────────────────────────────────
+
+function wfDetectCategory(kw) {
+    const all = [...kw.titles, ...kw.mustSkills, ...kw.niceSkills].join(' ').toLowerCase();
+    if (/engineer|developer|software|frontend|backend|fullstack|devops|cloud|platform|mobile|ios|android|ml|machine.learning|ai\b/.test(all)) return 'tech';
+    if (/data.scientist|tableau|power.bi|analytics|business.intelligence/.test(all)) return 'data';
+    if (/product.manager|product.owner|roadmap|sprint|agile|scrum/.test(all)) return 'product';
+    if (/ux|ui.designer|figma|user.research|prototyping|ux.designer/.test(all)) return 'design';
+    if (/sales|account.executive|revenue|crm|b2b|lead.generation/.test(all)) return 'sales';
+    if (/marketing|seo|content.manager|brand|growth.manager|digital.marketing/.test(all)) return 'marketing';
+    if (/hr.manager|hr.business.partner|recruiter|talent.acquisition|personalreferent|people.manager/.test(all)) return 'hr';
+    if (/finance|accounting|controller|cfo|auditor|tax/.test(all)) return 'finance';
+    if (/consultant|management.consultant|advisory/.test(all)) return 'consulting';
+    return 'general';
+}
+
+const POST_HOOKS = {
+    tech:       `The best engineering teams aren't built by accident.\n\nWe're hiring — and we're looking for someone exceptional.`,
+    data:       `Data is only as powerful as the people who know how to use it.\n\nWe're on the lookout for exactly that person.`,
+    product:    `Behind every great product is a great Product Manager.\n\nWe're building something meaningful — and we need yours.`,
+    design:     `Design isn't decoration. It's how people experience everything we build.\n\nWe're hiring a designer who gets that.`,
+    sales:      `Revenue doesn't grow by itself. It takes the right people, the right approach, and the right opportunity.\n\nThis might be yours.`,
+    marketing:  `Every great brand is built one story at a time.\n\nWe're looking for the marketer who'll help tell ours.`,
+    hr:         `People are our most important asset — and we need someone who truly believes that.\n\nWe're hiring.`,
+    finance:    `Numbers tell stories. We need someone who can read them — and act on them.\n\nWe're hiring.`,
+    consulting: `Complex problems. High-impact work. Exceptional clients.\n\nWe're growing our team with the right people.`,
+    general:    `We're growing — and we're looking for someone exceptional to grow with us.\n\nThis is your opportunity.`,
+};
+
+function wfBuildLinkedInPost(text, kw) {
+    const category  = wfDetectCategory(kw);
+    const title     = kw.titles.length > 0 ? kw.titles[0] : 'Experienced Professional';
+    const location  = kw.locations.length > 0 ? kw.locations[0] : null;
+    const exp       = kw.experience.length > 0 ? kw.experience[0] : null;
+    const topSkills = [...kw.mustSkills, ...kw.niceSkills].slice(0, 5);
+
+    const hook = POST_HOOKS[category] || POST_HOOKS.general;
+
+    let intro = `We're looking for a ${title}`;
+    if (exp) intro += ` with ${exp} of experience`;
+    if (location) intro += ` — based in ${location}`;
+    intro += `. This is a hands-on, high-impact role where you\'ll contribute directly to our product and team outcomes.`;
+
+    const responsibilities = wfExtractResponsibilities(text, kw);
+    const requirements     = wfExtractRequirements(kw, category);
+    const offer            = wfBuildOffer(category, location);
+    const hashtags         = wfBuildHashtags(kw, category);
+
+    const lines = [];
+    lines.push(hook);
+    lines.push('');
+    lines.push(intro);
+    lines.push('');
+
+    if (responsibilities.length > 0) {
+        lines.push('What You\'ll Do:');
+        responsibilities.forEach(r => lines.push(`▸ ${r}`));
+        lines.push('');
+    }
+
+    lines.push('What You Bring:');
+    requirements.forEach(r => lines.push(`✓ ${r}`));
+    lines.push('');
+
+    lines.push(offer);
+    lines.push('');
+    lines.push(`Interested? Apply directly or send your profile to [Contact Email]. We review on a rolling basis.`);
+    lines.push('');
+    lines.push(hashtags);
+
+    return lines.join('\n');
+}
+
+function wfExtractResponsibilities(text, kw) {
+    const lines = text.split('\n');
+    const results = [];
+    let inSection = false;
+    const sectionStart = /^(your responsibilities|responsibilities|what you.ll do|role|the role|your role|aufgaben|deine aufgaben|tätigkeiten|verantwortlichkeiten|was du tust)/i;
+    const sectionEnd   = /^(your profile|requirements|qualifications|what you bring|was du mitbringst|dein profil|anforderungen|skills|qualifikationen|we offer|benefits|was wir bieten)/i;
+    const bulletRe     = /^[-•*▸►→▶✦◆▪●·]\s+(.+)/;
+    const numberedRe   = /^\d+[.)]\s+(.+)/;
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        if (sectionStart.test(trimmed)) { inSection = true; continue; }
+        if (sectionEnd.test(trimmed))   { inSection = false; continue; }
+
+        let content = null;
+        const bm = trimmed.match(bulletRe) || trimmed.match(numberedRe);
+        if (bm) content = bm[1].trim();
+        else if (inSection && trimmed.length > 25 && trimmed.length < 200) content = trimmed;
+
+        if (content && content.length > 20) {
+            results.push(content);
+        }
+        if (results.length >= 4) break;
+    }
+
+    if (results.length === 0) {
+        const skills = kw.mustSkills.slice(0, 3);
+        if (skills.length >= 1) results.push(`Design, build, and maintain production-grade systems using ${skills[0]}`);
+        if (skills.length >= 2) results.push(`Collaborate with cross-functional teams to deliver reliable solutions with ${skills[1]}`);
+        if (skills.length >= 3) results.push(`Drive code quality, performance, and reliability across ${skills[2]} components`);
+        if (results.length < 3) results.push('Own deliverables end-to-end and contribute to architecture decisions');
+    }
+
+    return results.slice(0, 4);
+}
+
+function wfExtractRequirements(kw, category) {
+    const reqs = [];
+
+    if (kw.experience.length > 0) {
+        reqs.push(`${kw.experience[0]} of hands-on professional experience`);
+    }
+
+    if (kw.mustSkills.length > 0) {
+        const grp = kw.mustSkills.slice(0, 3);
+        if (grp.length === 1) {
+            reqs.push(`Solid proficiency in ${grp[0]}`);
+        } else {
+            reqs.push(`Strong skills in ${grp.slice(0, -1).join(', ')} and ${grp[grp.length - 1]}`);
+        }
+    }
+
+    if (kw.niceSkills.length > 0) {
+        reqs.push(`Experience with ${kw.niceSkills.slice(0, 2).join(' or ')} is a plus`);
+    }
+
+    const softSkills = {
+        tech:       'Strong problem-solving mindset and attention to code quality',
+        data:       'Ability to translate complex findings into clear, actionable insights',
+        product:    'Excellent stakeholder management and data-informed decision-making',
+        design:     'Compelling portfolio demonstrating user-centered design thinking',
+        sales:      'Proven track record of meeting or exceeding sales targets',
+        marketing:  'Data-driven mindset with a creative approach to content and campaigns',
+        hr:         'High empathy, strong interpersonal skills, and discretion',
+        finance:    'Exceptional accuracy, analytical rigour, and attention to detail',
+        consulting: 'Strong analytical skills and client-facing communication ability',
+        general:    'Strong communication skills and ability to thrive in a collaborative team',
+    };
+    reqs.push(softSkills[category] || softSkills.general);
+
+    return reqs.slice(0, 4);
+}
+
+function wfBuildOffer(category, location) {
+    const loc = location ? `${location} + remote options` : 'flexible remote/hybrid';
+    const offers = {
+        tech:       `What We Offer:\n▸ Technically challenging work with real business impact\n▸ Flexible setup (${loc})\n▸ Competitive compensation + equity\n▸ A culture of ownership, craft, and continuous learning`,
+        data:       `What We Offer:\n▸ Rich datasets and modern data tooling\n▸ Cross-functional visibility and executive exposure\n▸ Competitive compensation + equity\n▸ Flexible work model (${loc})`,
+        product:    `What We Offer:\n▸ Real ownership over product direction and roadmap\n▸ Tight collaboration with engineering, design, and leadership\n▸ Competitive compensation + equity\n▸ Flexible setup (${loc})`,
+        design:     `What We Offer:\n▸ Creative freedom within a design-forward organization\n▸ Modern tooling and a culture that invests in design\n▸ Competitive compensation + equity\n▸ Flexible work model (${loc})`,
+        sales:      `What We Offer:\n▸ Competitive base + uncapped commission\n▸ Strong inbound pipeline and enablement support\n▸ Clear career progression path\n▸ High-energy, collaborative team environment`,
+        marketing:  `What We Offer:\n▸ Budget to experiment and a team that values bold ideas\n▸ Data-driven culture with clear attribution\n▸ Competitive compensation + equity\n▸ Flexible setup (${loc})`,
+        hr:         `What We Offer:\n▸ A strategic seat at the table for people decisions\n▸ Modern HR systems and tooling\n▸ Competitive compensation + equity\n▸ A culture that lives its values`,
+        general:    `What We Offer:\n▸ Competitive compensation and benefits\n▸ Flexible work arrangements (${loc})\n▸ Professional development budget\n▸ A collaborative, inclusive team culture`,
+    };
+    return offers[category] || offers.general;
+}
+
+function wfBuildHashtags(kw, category) {
+    const catTags = {
+        tech:       ['#engineering', '#softwaredevelopment', '#techjobs'],
+        data:       ['#datascience', '#analytics', '#AI'],
+        product:    ['#productmanagement', '#agile', '#startups'],
+        design:     ['#uxdesign', '#productdesign', '#userexperience'],
+        sales:      ['#sales', '#b2b', '#businessdevelopment'],
+        marketing:  ['#digitalmarketing', '#growth', '#contentmarketing'],
+        hr:         ['#humanresources', '#talentacquisition', '#peopleops'],
+        finance:    ['#finance', '#accounting', '#fintech'],
+        consulting: ['#consulting', '#strategy', '#management'],
+        general:    ['#careers', '#talent', '#opportunity'],
+    };
+
+    const skillTags = kw.mustSkills
+        .slice(0, 3)
+        .map(s => `#${s.replace(/[^A-Za-z0-9]/g, '').toLowerCase()}`)
+        .filter(h => h.length > 2 && h !== '#');
+
+    const base = ['#hiring', '#nowhiring'];
+    const all  = [...base, ...(catTags[category] || catTags.general), ...skillTags];
+    return [...new Set(all)].slice(0, 8).join(' ');
+}
+
+// ─── Section 4: Image Prompt ─────────────────────────────────────────────────
+
+function wfBuildImagePrompt(kw) {
+    const category = wfDetectCategory(kw);
+
+    const scenes = {
+        tech: {
+            subject:  'a focused software engineer working at a sleek standing desk with dual ultrawide monitors displaying code editors and terminal windows',
+            setting:  'modern open-plan tech office with exposed brick, plants, and soft ambient lighting',
+            props:    'mechanical keyboard, coffee cup, sticky notes, code on screens',
+            mood:     'productive, calm, modern, aspirational',
+        },
+        data: {
+            subject:  'a data analyst reviewing rich dashboards and charts on a large curved monitor, taking notes',
+            setting:  'contemporary analytics workspace with large screens showing data visualizations',
+            props:    'data dashboards, notebook, espresso, second screen with charts',
+            mood:     'analytical, focused, professional, bright',
+        },
+        product: {
+            subject:  'a product manager presenting a roadmap on a large whiteboard to a small, engaged cross-functional team',
+            setting:  'bright collaborative studio with sticky notes, user journey maps on the walls, and glass partitions',
+            props:    'sticky notes, user story maps, laptop, tablet showing wireframes',
+            mood:     'collaborative, energetic, strategic, optimistic',
+        },
+        design: {
+            subject:  'a UX designer sketching wireframes on a drawing tablet while referencing UI designs on a large monitor',
+            setting:  'creative design studio with warm lighting, mood boards on the wall, and design books',
+            props:    'drawing tablet, Figma-style interface on screen, color swatches, sketch pad',
+            mood:     'creative, artistic, focused, inspiring',
+        },
+        sales: {
+            subject:  'a confident sales professional smiling during a professional video call on a laptop in a bright office',
+            setting:  'modern professional office with floor-to-ceiling windows and city skyline views',
+            props:    'laptop, notepad, business papers, city backdrop',
+            mood:     'confident, warm, dynamic, professional',
+        },
+        marketing: {
+            subject:  'a marketing professional reviewing campaign analytics on multiple screens, pointing at a graph',
+            setting:  'vibrant open marketing agency workspace with campaign materials pinned to boards',
+            props:    'analytics dashboards, campaign visuals, laptop, coffee',
+            mood:     'creative, data-driven, energetic, bold',
+        },
+        hr: {
+            subject:  'an HR professional in a friendly one-on-one conversation in a bright, welcoming meeting room',
+            setting:  'modern HR office with warm interior design, plants, and comfortable seating',
+            props:    'documents, laptop, coffee table, plants, natural light',
+            mood:     'warm, approachable, professional, human',
+        },
+        general: {
+            subject:  'a confident professional working at a clean, organized desk in a modern office',
+            setting:  'bright contemporary open-plan office with natural lighting and collaborative spaces',
+            props:    'laptop, notebook, coffee cup, plants',
+            mood:     'professional, focused, modern, aspirational',
+        },
+    };
+
+    const s = scenes[category] || scenes.general;
+
+    return (
+        `Professional corporate lifestyle photography for a job posting: ` +
+        `${s.subject}, ` +
+        `set in ${s.setting}, ` +
+        `visible props: ${s.props}, ` +
+        `mood: ${s.mood}, ` +
+        `diverse and inclusive representation with authentic expressions, ` +
+        `natural window light with soft studio fill, shallow depth of field, ` +
+        `shot on Sony A7R V with 85mm f/1.4 lens, photorealistic, crisp 8K resolution, ` +
+        `high-end corporate lifestyle photography, clean composition, aspirational but approachable, ` +
+        `no text overlays, no logos, no watermarks ` +
+        `--ar 16:9 --style raw --v 6`
+    );
 }
