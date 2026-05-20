@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initGenerator();
     initBuilder();
+    initAgent();
     renderHistory();
 });
 
@@ -744,4 +745,408 @@ function renderHistory() {
         localStorage.removeItem('booleanSearchHistory');
         renderHistory();
     };
+}
+
+// =============================================
+// AI RECRUITING AGENT
+// =============================================
+
+const AGENT_SYSTEM_PROMPT = `You are an expert AI Recruiting Assistant embedded in the Recruiter AI Kit tool. You have deep expertise in talent acquisition, technical recruiting, Boolean search, sourcing, and hiring best practices.
+
+Your core capabilities:
+1. **Boolean Search Strings**: Generate optimized Boolean search strings for LinkedIn, Google X-Ray, GitHub, and XING. Use proper operators: AND, OR, NOT, quotes for exact phrases, parentheses for grouping. Always put the Boolean string inside a code block so it can be copied easily.
+2. **Outreach Messages**: Write personalized, compelling InMail messages and cold emails that get high response rates. Include [PLACEHOLDER] markers for customization.
+3. **Interview Questions**: Generate targeted, role-specific question sets grouped by category: Technical, Behavioral, Culture Fit, and Role-Specific.
+4. **Job Postings**: Write attractive, inclusive job descriptions that attract top talent. Avoid jargon and focus on impact and growth.
+5. **Candidate Screening**: Analyze resumes and candidate profiles against job requirements. Provide a structured evaluation with strengths, gaps, and a recommendation.
+6. **Recruiting Strategy**: Give tactical, actionable advice on sourcing, pipeline management, employer branding, and hiring process optimization.
+
+Guidelines:
+- Be concise and actionable. Recruiters are busy professionals.
+- For Boolean strings, ALWAYS wrap them in a code block (\`\`\`) for easy copying.
+- For outreach messages, provide complete, ready-to-use templates.
+- For interview questions, organize them clearly by category with 3-5 questions each.
+- Always ask for clarification if the role or context is unclear.
+- When you don't know something, say so honestly.`;
+
+const AGENT_QUICK_PROMPTS = {
+    boolean: 'Ich brauche einen Boolean-Suchstring für eine Stelle. Füge bitte die Stellenbeschreibung unten ein – ich erstelle daraus eine optimierte Suche für LinkedIn, Google X-Ray und GitHub.\n\nStellenbeschreibung:',
+    outreach: 'Ich möchte eine personalisierte Outreach-/InMail-Nachricht schreiben. Bitte teile mir mit:\n1. Die Stelle, für die du recruitest\n2. Wichtige Vorteile (Unternehmen, Team, Wachstum, Gehalt)\n3. Infos zum Zielkandidaten (optional)\n\nStelle, für die ich recruite:',
+    interview: 'Ich benötige einen umfassenden Interviewfragen-Katalog. Bitte nenne mir Jobtitel und Kernanforderungen – ich generiere Fragen zu Fachkompetenz, Verhalten, Kulturfit und rollenspezifischen Themen.\n\nRolle und Kernanforderungen:',
+    jobpost: 'Ich brauche Hilfe beim Verfassen einer überzeugenden Stellenausschreibung. Bitte angeben:\n- Jobtitel\n- Unternehmensname & Kultur\n- Hauptaufgaben (3–5 Punkte)\n- Benötigte Skills/Erfahrung\n\nLegen wir los – Jobtitel und Unternehmen:',
+    screen: 'Ich möchte einen Kandidaten für eine Stelle prüfen. Bitte stelle bereit:\n1. Die Stellenanforderungen\n2. Das Profil oder den Lebenslauf des Kandidaten\n\nIch liefere eine strukturierte Bewertung mit Stärken, Lücken und Empfehlung.\n\nStelleanforderungen:',
+    strategy: 'Ich kann bei Recruiting-Strategie und Sourcing-Best-Practices helfen. Welche Herausforderung hast du? Zum Beispiel:\n- „Wie finde ich passive Kandidaten für [Rolle]?"\n- „Wie verbessere ich meine InMail-Antwortrate?"\n- „Was ist der beste Ansatz, um [Rolle] schnell zu besetzen?"\n\nDeine Frage:',
+};
+
+const agentState = {
+    messages: [],
+    isLoading: false,
+    apiKey: '',
+    model: 'claude-sonnet-4-6',
+};
+
+function initAgent() {
+    // Vorkonfigurierter Firmen-Key hat Vorrang vor localStorage
+    const preconfigured = window.ANTHROPIC_CONFIG?.apiKey || '';
+    agentState.apiKey = preconfigured || localStorage.getItem('anthropicApiKey') || '';
+    agentState.model = window.ANTHROPIC_CONFIG?.model || localStorage.getItem('agentModel') || 'claude-sonnet-4-6';
+
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const modelSelect = document.getElementById('modelSelect');
+    if (apiKeyInput) apiKeyInput.value = agentState.apiKey;
+    if (modelSelect) modelSelect.value = agentState.model;
+
+    // Setup-Panel ausblenden wenn Key bereits hinterlegt ist
+    if (preconfigured) {
+        const setupCard = document.querySelector('.agent-setup-card');
+        if (setupCard) setupCard.style.display = 'none';
+    }
+
+    updateAgentSetupStatus();
+
+    // Setup panel toggle
+    document.getElementById('agentSetupToggle').addEventListener('click', () => {
+        const body = document.getElementById('agentSetupBody');
+        const chevron = document.getElementById('toggleSetupBtn');
+        const collapsed = body.classList.toggle('collapsed');
+        chevron.textContent = collapsed ? '▼' : '▲';
+    });
+
+    // API key management
+    document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+        const key = apiKeyInput.value.trim();
+        agentState.apiKey = key;
+        if (key) {
+            localStorage.setItem('anthropicApiKey', key);
+        } else {
+            localStorage.removeItem('anthropicApiKey');
+        }
+        updateAgentSetupStatus();
+        agentShowToast(key ? 'API-Key gespeichert!' : 'API-Key gelöscht.');
+    });
+
+    document.getElementById('clearApiKeyBtn').addEventListener('click', () => {
+        apiKeyInput.value = '';
+        agentState.apiKey = '';
+        localStorage.removeItem('anthropicApiKey');
+        updateAgentSetupStatus();
+        agentShowToast('API-Key gelöscht.');
+    });
+
+    modelSelect.addEventListener('change', (e) => {
+        agentState.model = e.target.value;
+        localStorage.setItem('agentModel', agentState.model);
+    });
+
+    // Quick action buttons
+    document.querySelectorAll('.quick-action-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const prompt = AGENT_QUICK_PROMPTS[btn.dataset.action];
+            if (!prompt) return;
+            const input = document.getElementById('agentInput');
+            input.value = prompt;
+            updateCharCounter();
+            input.focus();
+            document.getElementById('agentMessages').scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+
+    // Chat input
+    const agentInput = document.getElementById('agentInput');
+    agentInput.addEventListener('input', updateCharCounter);
+    agentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleAgentSend();
+        }
+    });
+
+    document.getElementById('agentSendBtn').addEventListener('click', handleAgentSend);
+
+    document.getElementById('resetChatBtn').addEventListener('click', () => {
+        agentState.messages = [];
+        document.getElementById('agentMessages').innerHTML = buildWelcomeMessageHTML();
+    });
+}
+
+function updateAgentSetupStatus() {
+    const el = document.getElementById('setupStatus');
+    if (!el) return;
+    if (agentState.apiKey) {
+        el.textContent = 'Konfiguriert ✓';
+        el.className = 'setup-status configured';
+    } else {
+        el.textContent = 'API-Key erforderlich';
+        el.className = 'setup-status not-configured';
+    }
+}
+
+function updateCharCounter() {
+    const input = document.getElementById('agentInput');
+    const counter = document.getElementById('charCounter');
+    if (counter) counter.textContent = input.value.length;
+}
+
+async function handleAgentSend() {
+    const input = document.getElementById('agentInput');
+    const text = input.value.trim();
+    if (!text || agentState.isLoading) return;
+
+    if (!agentState.apiKey) {
+        agentAppendError('Bitte trage deinen Anthropic-API-Key im Bereich „Agent-Einrichtung" ein, um den KI-Assistenten zu nutzen.');
+        return;
+    }
+
+    input.value = '';
+    updateCharCounter();
+
+    agentState.messages.push({ role: 'user', content: text });
+    agentAppendUserMessage(text);
+    setAgentLoading(true);
+
+    try {
+        const reply = await callClaudeAPI(agentState.messages);
+        agentState.messages.push({ role: 'assistant', content: reply });
+        agentAppendAssistantMessage(reply);
+    } catch (err) {
+        agentAppendError('Fehler bei der Kommunikation mit Claude: ' + err.message);
+        agentState.messages.pop();
+    } finally {
+        setAgentLoading(false);
+    }
+}
+
+async function callClaudeAPI(messages) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': agentState.apiKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
+            'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+            model: agentState.model,
+            max_tokens: 2048,
+            system: AGENT_SYSTEM_PROMPT,
+            messages,
+        }),
+    });
+
+    if (!res.ok) {
+        let errMsg = `HTTP ${res.status}`;
+        try {
+            const body = await res.json();
+            errMsg = body.error?.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+    }
+
+    const data = await res.json();
+    return data.content[0].text;
+}
+
+// ---- Message Rendering ----
+
+function agentAppendUserMessage(text) {
+    const container = document.getElementById('agentMessages');
+    const div = document.createElement('div');
+    div.className = 'agent-message user-message';
+    div.innerHTML = `
+        <div class="message-content user-bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+        <div class="user-avatar">Du</div>
+    `;
+    container.appendChild(div);
+    agentScrollToBottom();
+}
+
+function agentAppendAssistantMessage(text) {
+    const container = document.getElementById('agentMessages');
+    const div = document.createElement('div');
+    div.className = 'agent-message assistant-message';
+
+    const rendered = renderAgentMarkdown(text);
+    const booleanStr = extractBooleanFromResponse(text);
+
+    div.innerHTML = `
+        <div class="agent-avatar">AI</div>
+        <div class="message-content">
+            ${rendered}
+            <div class="message-actions">
+                <button class="msg-action-btn copy-msg-btn">Antwort kopieren</button>
+                ${booleanStr ? `<button class="msg-action-btn send-to-gen-btn">&#128269; An Generator senden</button>` : ''}
+            </div>
+        </div>
+    `;
+
+    div.querySelector('.copy-msg-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText(text).then(() => agentShowToast('In die Zwischenablage kopiert!'));
+    });
+
+    if (booleanStr) {
+        div.querySelector('.send-to-gen-btn').addEventListener('click', () => {
+            sendBooleanToGenerator(booleanStr);
+        });
+    }
+
+    container.appendChild(div);
+    agentScrollToBottom();
+}
+
+function agentAppendError(msg) {
+    const container = document.getElementById('agentMessages');
+    const div = document.createElement('div');
+    div.className = 'agent-error-msg';
+    div.textContent = msg;
+    container.appendChild(div);
+    agentScrollToBottom();
+}
+
+function setAgentLoading(loading) {
+    agentState.isLoading = loading;
+    const typing = document.getElementById('agentTyping');
+    const btn = document.getElementById('agentSendBtn');
+    const input = document.getElementById('agentInput');
+    typing.style.display = loading ? 'flex' : 'none';
+    btn.disabled = loading;
+    input.disabled = loading;
+    if (loading) agentScrollToBottom();
+}
+
+function agentScrollToBottom() {
+    const el = document.getElementById('agentMessages');
+    setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+}
+
+function agentShowToast(msg) {
+    const toast = document.getElementById('copyToast');
+    const original = toast.textContent;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.textContent = original;
+    }, 2000);
+}
+
+function sendBooleanToGenerator(query) {
+    // Switch to generator tab
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="generator"]').classList.add('active');
+    document.getElementById('tab-generator').classList.add('active');
+
+    // Populate result box
+    currentQuery = query;
+    document.getElementById('platformSection').style.display = 'block';
+    document.getElementById('searchLinksSection').style.display = 'block';
+    document.getElementById('resultBox').innerHTML = highlightBoolean(query);
+    updateSearchLinks(query);
+    saveToHistory(query);
+
+    document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    agentShowToast('Boolean-String an Generator gesendet!');
+}
+
+// ---- Markdown Renderer ----
+
+function renderAgentMarkdown(rawText) {
+    const codeBlocks = [];
+
+    // Extract code blocks
+    const withPlaceholders = rawText.replace(/```(?:\w+)?\n?([\s\S]*?)```/g, (_, code) => {
+        const i = codeBlocks.length;
+        codeBlocks.push(code.trim());
+        return `\x01CODE${i}\x01`;
+    });
+
+    const lines = withPlaceholders.split('\n');
+    const output = [];
+    const listBuffer = [];
+
+    function flushList() {
+        if (listBuffer.length > 0) {
+            output.push(`<ul class="agent-list">${listBuffer.splice(0).join('')}</ul>`);
+        }
+    }
+
+    for (const rawLine of lines) {
+        const line = rawLine.trim();
+
+        // Code block placeholder
+        const codeMatch = line.match(/^\x01CODE(\d+)\x01$/);
+        if (codeMatch) {
+            flushList();
+            const idx = parseInt(codeMatch[1]);
+            output.push(`<pre class="agent-code"><code>${escapeHtml(codeBlocks[idx])}</code></pre>`);
+            continue;
+        }
+
+        // Empty line
+        if (!line) {
+            flushList();
+            continue;
+        }
+
+        // Header
+        const hMatch = line.match(/^(#{1,4}) (.*)/);
+        if (hMatch) {
+            flushList();
+            const lvl = Math.min(hMatch[1].length + 1, 6);
+            output.push(`<h${lvl} class="agent-h">${agentFormatInline(escapeHtml(hMatch[2]))}</h${lvl}>`);
+            continue;
+        }
+
+        // List item
+        const liMatch = line.match(/^(?:[\-\*•]|\d+[\.\)]) (.*)/);
+        if (liMatch) {
+            listBuffer.push(`<li>${agentFormatInline(escapeHtml(liMatch[1]))}</li>`);
+            continue;
+        }
+
+        // Regular paragraph line
+        flushList();
+        output.push(`<p>${agentFormatInline(escapeHtml(line))}</p>`);
+    }
+
+    flushList();
+    return output.join('\n');
+}
+
+function agentFormatInline(text) {
+    return text
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        .replace(/`([^`\n]+)`/g, '<code class="inline-code">$1</code>');
+}
+
+function extractBooleanFromResponse(text) {
+    const codeMatches = [...text.matchAll(/```(?:\w+)?\n?([\s\S]*?)```/g)];
+    for (const m of codeMatches) {
+        const code = m[1].trim();
+        if (looksLikeBoolean(code)) return code;
+    }
+    return null;
+}
+
+function looksLikeBoolean(str) {
+    return str.length < 600 && / AND | OR | NOT |site:/i.test(str);
+}
+
+function buildWelcomeMessageHTML() {
+    return `<div class="agent-message assistant-message">
+        <div class="agent-avatar">KI</div>
+        <div class="message-content">
+            <p>Hallo! Ich bin dein KI-Recruiting-Assistent, angetrieben von Claude. Ich helfe dir bei:</p>
+            <ul class="agent-list">
+                <li>Boolean-Suchstrings aus Stellenbeschreibungen generieren</li>
+                <li>Personalisierte InMail- &amp; Outreach-Nachrichten schreiben</li>
+                <li>Gezielte Interviewfragen-Sets erstellen</li>
+                <li>Überzeugende Stellenausschreibungen verfassen</li>
+                <li>Kandidatenprofile sichten und bewerten</li>
+                <li>Sourcing- &amp; Recruiting-Strategie beraten</li>
+            </ul>
+            <p>Nutze die Schnellaktionen oben oder tippe deine Frage unten ein!</p>
+        </div>
+    </div>`;
 }
