@@ -57,6 +57,19 @@ const SKILL_KEYWORDS = [
     'User Research', 'Prototyping', 'Design System', 'Wireframing', 'Usability Testing',
     'Accessibility', 'Responsive Design', 'Design Thinking',
     'Workday', 'SAP HR', 'SuccessFactors', 'BambooHR', 'Personio',
+    // Windows & Microsoft Ecosystem
+    'Windows', 'Windows Server', 'Windows 10', 'Windows 11',
+    'Active Directory', 'Azure AD', 'Entra ID', 'Group Policy', 'SCCM', 'Intune', 'WSUS',
+    'RDP', 'Remote Desktop', 'Terminalserver',
+    'VPN', 'DHCP', 'DNS', 'TCP/IP', 'WLAN', 'LAN',
+    'SharePoint', 'Microsoft Teams', 'MS Teams', 'OneDrive',
+    'Microsoft 365', 'Office 365', 'MS Office',
+    'Exchange', 'Exchange Server', 'Outlook',
+    // IT Support & Operations
+    'ITSM', 'Service Desk', 'Helpdesk', 'Ticketsystem', 'ServiceNow',
+    'Workplace Management', 'Asset Management', 'CMDB',
+    'Druckermanagement', 'Telematik', 'Konnektoren',
+    'Fachinformatiker', 'Systemintegration',
 ];
 
 const TITLE_PATTERNS = [
@@ -92,6 +105,14 @@ const TITLE_PATTERNS = [
     'People Operations', 'Personalleiter', 'Head of People',
     'Consultant', 'Management Consultant', 'IT Consultant', 'Berater',
     'Scrum Master', 'Agile Coach',
+    // German IT Operations & Support
+    'Fachinformatiker Systemintegration', 'Fachinformatiker Anwendungsentwicklung',
+    'Systemadministrator', 'IT-Administrator', 'IT Administrator',
+    'IT Support Spezialist', 'IT-Support Spezialist', 'IT Techniker', 'IT-Techniker',
+    'Helpdesk Technician', 'IT Helpdesk', 'Service Desk Analyst',
+    'Field Service Technician', 'Field Technician', 'Onsite Technician',
+    'Workplace Engineer', 'Workplace Specialist', 'Anwendungsbetreuer', 'Anwendungsmanager',
+    'Netzwerkadministrator', 'Netzwerktechniker', 'IT-Betreuer',
 ];
 
 const LOCATION_PATTERNS = [
@@ -280,14 +301,40 @@ function extractKeywords(text) {
     const niceToHaveLines = new Set();
     const mustHaveLines = new Set();
 
+    // Signals that are section headers → propagate nice zone to all following lines
+    const ZONE_SECTION_SIGNALS = [
+        'nice to have', 'nice-to-have', 'von vorteil', 'wünschenswert',
+        'gerne gesehen', 'nicht zwingend',
+    ];
+    // Signals that are inline qualifiers → only mark THIS line as nice
+    const ZONE_INLINE_SIGNALS = [
+        'idealerweise', 'optional', 'bevorzugt', 'preferred',
+        'desired', 'a plus', 'bonus', 'advantageous', 'zusätzlich',
+    ];
+
     lines.forEach((line, i) => {
         const lowerLine = line.toLowerCase();
-        if (NICE_TO_HAVE_SIGNALS.some(s => lowerLine.includes(s))) {
-            niceToHaveZone = true;
-            niceToHaveLines.add(i);
-        } else if (lowerLine.match(/^(anforderungen|requirements|must.have|voraussetzungen|qualifikationen|what you.ll bring|dein profil|ihr profil|was du mitbringst)/i)) {
+        const stripped = lowerLine.replace(/^[\s•\-*]+/, '').trim();
+
+        // Reset zone on must-have section headers
+        if (stripped.match(/^(anforderungen|requirements|must.have|voraussetzungen|qualifikationen|what you.ll bring|dein profil|ihr profil|was du mitbringst|fachliche anforderungen|zwingend erforderlich)/i)) {
             niceToHaveZone = false;
         }
+
+        const isSectionHeader = (
+            ZONE_SECTION_SIGNALS.some(s => lowerLine.includes(s)) ||
+            // Line ends with ":" and contains an inline signal → acts as section header for items below
+            (stripped.endsWith(':') && ZONE_INLINE_SIGNALS.some(s => lowerLine.includes(s)))
+        );
+
+        if (isSectionHeader) {
+            niceToHaveZone = true;
+            niceToHaveLines.add(i);
+        } else if (ZONE_INLINE_SIGNALS.some(s => lowerLine.includes(s))) {
+            // Inline qualifier: only this line is nice-to-have, zone doesn't propagate
+            niceToHaveLines.add(i);
+        }
+
         if (niceToHaveZone) {
             niceToHaveLines.add(i);
         }
@@ -295,7 +342,7 @@ function extractKeywords(text) {
 
     // Extract titles
     TITLE_PATTERNS.forEach(title => {
-        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(title)}(?![A-Za-z0-9])`, 'i');
+        const regex = new RegExp(`(?<![A-Za-zÀ-öø-ÿ0-9])${escapeRegex(title)}(?![A-Za-zÀ-öø-ÿ0-9])`, 'i');
         if (regex.test(text)) {
             if (!extracted.titles.includes(title)) {
                 extracted.titles.push(title);
@@ -310,7 +357,7 @@ function extractKeywords(text) {
 
     // Extract skills
     SKILL_KEYWORDS.forEach(skill => {
-        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(skill)}(?![A-Za-z0-9])`, 'i');
+        const regex = new RegExp(`(?<![A-Za-zÀ-öø-ÿ0-9])${escapeRegex(skill)}(?![A-Za-zÀ-öø-ÿ0-9])`, 'i');
         if (regex.test(text)) {
             // Determine if it's in a nice-to-have section
             let isNice = false;
@@ -330,7 +377,7 @@ function extractKeywords(text) {
 
     // Extract locations
     LOCATION_PATTERNS.forEach(loc => {
-        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(loc)}(?![A-Za-z0-9])`, 'i');
+        const regex = new RegExp(`(?<![A-Za-zÀ-öø-ÿ0-9])${escapeRegex(loc)}(?![A-Za-zÀ-öø-ÿ0-9])`, 'i');
         if (regex.test(text)) {
             if (!extracted.locations.includes(loc)) extracted.locations.push(loc);
         }
