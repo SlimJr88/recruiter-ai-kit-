@@ -5,7 +5,7 @@
 // === Keyword Dictionaries for Extraction ===
 const SKILL_KEYWORDS = [
     // Programming Languages
-    'JavaScript', 'TypeScript', 'Python', 'Java', 'Kotlin', 'C#', 'C\\+\\+', 'Go', 'Golang', 'Rust',
+    'JavaScript', 'TypeScript', 'Python', 'Java', 'Kotlin', 'C#', 'C++', 'Go', 'Golang', 'Rust',
     'Ruby', 'PHP', 'Swift', 'Scala', 'R', 'Dart', 'Perl', 'Haskell', 'Elixir', 'Clojure',
     'Objective-C', 'ABAP', 'COBOL', 'Fortran', 'Lua', 'Groovy', 'Shell', 'Bash', 'PowerShell',
     // Frontend
@@ -295,7 +295,7 @@ function extractKeywords(text) {
 
     // Extract titles
     TITLE_PATTERNS.forEach(title => {
-        const regex = new RegExp(`\\b${escapeRegex(title)}\\b`, 'i');
+        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(title)}(?![A-Za-z0-9])`, 'i');
         if (regex.test(text)) {
             if (!extracted.titles.includes(title)) {
                 extracted.titles.push(title);
@@ -310,7 +310,7 @@ function extractKeywords(text) {
 
     // Extract skills
     SKILL_KEYWORDS.forEach(skill => {
-        const regex = new RegExp(`\\b${escapeRegex(skill)}\\b`, 'i');
+        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(skill)}(?![A-Za-z0-9])`, 'i');
         if (regex.test(text)) {
             // Determine if it's in a nice-to-have section
             let isNice = false;
@@ -330,7 +330,7 @@ function extractKeywords(text) {
 
     // Extract locations
     LOCATION_PATTERNS.forEach(loc => {
-        const regex = new RegExp(`\\b${escapeRegex(loc)}\\b`, 'i');
+        const regex = new RegExp(`(?<![A-Za-z0-9])${escapeRegex(loc)}(?![A-Za-z0-9])`, 'i');
         if (regex.test(text)) {
             if (!extracted.locations.includes(loc)) extracted.locations.push(loc);
         }
@@ -382,6 +382,40 @@ function renderTagGroup(elementId, items, stateKey, extraClass) {
     });
 }
 
+function skillScore(skill) {
+    const generic = new Set([
+        'REST', 'RESTful', 'API', 'WebSocket', 'gRPC', 'GraphQL',
+        'Git', 'GitHub', 'GitLab', 'Bitbucket', 'SVN',
+        'SQL', 'HTML', 'CSS', 'HTML5', 'CSS3', 'JSON', 'Sass', 'SCSS', 'LESS',
+        'Agile', 'Scrum', 'Kanban', 'OKR', 'Lean', 'TDD', 'BDD',
+        'Linux', 'Unix', 'Shell', 'Bash', 'DevOps', 'CI/CD',
+        'B2B', 'B2C', 'SaaS', 'CRM', 'ERP', 'QA',
+        'SEO', 'SEA', 'SEM', 'Recruiting', 'HR',
+    ]);
+    const verySpecific = new Set([
+        'Kubernetes', 'K8s', 'Terraform', 'Ansible', 'Helm', 'Pulumi',
+        'Spring Boot', 'NestJS', 'FastAPI', 'Django', 'Flask', 'Rails', 'Ruby on Rails',
+        'TensorFlow', 'PyTorch', 'scikit-learn', 'Keras',
+        'Apache Kafka', 'Kafka', 'Apache Spark', 'Airflow', 'Databricks', 'Snowflake',
+        'Elasticsearch', 'Cassandra', 'Neo4j', 'DynamoDB', 'Supabase',
+        'React Native', 'Flutter', 'SwiftUI', 'Jetpack Compose',
+        'Salesforce', 'SAP', 'ABAP', 'SuccessFactors', 'Workday', 'Personio',
+        'Solidity', 'Blockchain', 'COBOL', 'RTOS', 'ROS', 'Embedded',
+        'AWS', 'Amazon Web Services', 'Azure', 'GCP', 'Google Cloud',
+        'Kotlin', 'Swift', 'Golang', 'Go', 'Rust', 'Scala', 'Elixir',
+        'C++', 'C#', 'TypeScript', 'Python', 'Java', 'PHP', 'Ruby',
+        'React', 'Angular', 'Vue', 'Vue.js', 'Next.js', 'Nuxt', 'Svelte',
+        'Node.js', 'Express', 'Hibernate', '.NET', 'ASP.NET', '.NET Core',
+        'PostgreSQL', 'MongoDB', 'Redis', 'MySQL', 'Oracle', 'MS SQL', 'MariaDB',
+        'Docker', 'Jenkins', 'GitLab CI', 'GitHub Actions', 'CircleCI',
+        'Figma', 'Adobe XD', 'Sketch',
+        'Machine Learning', 'Deep Learning', 'NLP', 'Computer Vision', 'Data Science',
+    ]);
+    if (verySpecific.has(skill)) return 2;
+    if (generic.has(skill)) return 0;
+    return 1;
+}
+
 function buildGeneratorQuery() {
     const parts = [];
 
@@ -397,24 +431,26 @@ function buildGeneratorQuery() {
         parts.push(orGroup(extracted.titles));
     }
 
-    // Must-have skills (AND)
-    extracted.mustSkills.forEach(skill => {
+    // Sort must-haves by specificity, cap AND conditions to avoid zero results
+    const maxMust = (currentPlatform === 'linkedin' || currentPlatform === 'xing') ? 3 : 5;
+    const sortedMust = [...extracted.mustSkills].sort((a, b) => skillScore(b) - skillScore(a));
+    const coreSkills = sortedMust.slice(0, maxMust);
+    const overflowSkills = sortedMust.slice(maxMust);
+
+    // Core skills as AND conditions
+    coreSkills.forEach(skill => {
         parts.push(quote(skill));
     });
 
-    // Nice-to-have skills (OR group)
-    if (extracted.niceSkills.length > 0) {
-        parts.push(orGroup(extracted.niceSkills));
+    // Overflow must-haves + nice-to-haves → OR group (broadens instead of narrowing)
+    const allNice = [...overflowSkills, ...extracted.niceSkills];
+    if (allNice.length > 0) {
+        parts.push(orGroup(allNice));
     }
 
     // Locations
     if (extracted.locations.length > 0) {
         parts.push(orGroup(extracted.locations));
-    }
-
-    // Experience
-    if (extracted.experience.length > 0) {
-        parts.push(`"${extracted.experience[0]}"`);
     }
 
     let andOp = 'AND';
