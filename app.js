@@ -770,12 +770,12 @@ Guidelines:
 - When you don't know something, say so honestly.`;
 
 const AGENT_QUICK_PROMPTS = {
-    boolean: 'I need to generate a Boolean search string for a role. Please paste the job description below and I\'ll create an optimized search for LinkedIn, Google X-Ray, and GitHub.\n\nJob description:',
-    outreach: 'I need to write a personalized outreach/InMail message. Please tell me:\n1. The role you\'re hiring for\n2. Key selling points (company, team, growth, comp)\n3. Any details about the target candidate (optional)\n\nRole I\'m recruiting for:',
-    interview: 'I need a comprehensive set of interview questions. Please provide the job title and key requirements, and I\'ll generate questions across Technical, Behavioral, Culture Fit, and Role-Specific categories.\n\nRole and key requirements:',
-    jobpost: 'I need help writing a compelling job posting. Please provide:\n- Job title\n- Company name & culture\n- Key responsibilities (3-5 bullets)\n- Required skills/experience\n\nLet\'s start — job title and company:',
-    screen: 'I\'ll help you screen a candidate against a role. Please provide:\n1. The job requirements\n2. The candidate\'s profile or resume\n\nI\'ll give you a structured evaluation with strengths, gaps, and a recommendation.\n\nJob requirements:',
-    strategy: 'I can help with recruiting strategy and sourcing best practices. What challenge are you facing? For example:\n- "How do I source passive candidates for [role]?"\n- "How do I improve my InMail response rate?"\n- "What\'s the best approach to hire [role] fast?"\n\nYour question:',
+    boolean: 'Ich brauche einen Boolean-Suchstring für eine Stelle. Füge bitte die Stellenbeschreibung unten ein – ich erstelle daraus eine optimierte Suche für LinkedIn, Google X-Ray und GitHub.\n\nStellenbeschreibung:',
+    outreach: 'Ich möchte eine personalisierte Outreach-/InMail-Nachricht schreiben. Bitte teile mir mit:\n1. Die Stelle, für die du recruitest\n2. Wichtige Vorteile (Unternehmen, Team, Wachstum, Gehalt)\n3. Infos zum Zielkandidaten (optional)\n\nStelle, für die ich recruite:',
+    interview: 'Ich benötige einen umfassenden Interviewfragen-Katalog. Bitte nenne mir Jobtitel und Kernanforderungen – ich generiere Fragen zu Fachkompetenz, Verhalten, Kulturfit und rollenspezifischen Themen.\n\nRolle und Kernanforderungen:',
+    jobpost: 'Ich brauche Hilfe beim Verfassen einer überzeugenden Stellenausschreibung. Bitte angeben:\n- Jobtitel\n- Unternehmensname & Kultur\n- Hauptaufgaben (3–5 Punkte)\n- Benötigte Skills/Erfahrung\n\nLegen wir los – Jobtitel und Unternehmen:',
+    screen: 'Ich möchte einen Kandidaten für eine Stelle prüfen. Bitte stelle bereit:\n1. Die Stellenanforderungen\n2. Das Profil oder den Lebenslauf des Kandidaten\n\nIch liefere eine strukturierte Bewertung mit Stärken, Lücken und Empfehlung.\n\nStelleanforderungen:',
+    strategy: 'Ich kann bei Recruiting-Strategie und Sourcing-Best-Practices helfen. Welche Herausforderung hast du? Zum Beispiel:\n- „Wie finde ich passive Kandidaten für [Rolle]?"\n- „Wie verbessere ich meine InMail-Antwortrate?"\n- „Was ist der beste Ansatz, um [Rolle] schnell zu besetzen?"\n\nDeine Frage:',
 };
 
 const agentState = {
@@ -814,7 +814,7 @@ function initAgent() {
             localStorage.removeItem('anthropicApiKey');
         }
         updateAgentSetupStatus();
-        agentShowToast(key ? 'API key saved!' : 'API key cleared.');
+        agentShowToast(key ? 'API-Key gespeichert!' : 'API-Key gelöscht.');
     });
 
     document.getElementById('clearApiKeyBtn').addEventListener('click', () => {
@@ -822,7 +822,7 @@ function initAgent() {
         agentState.apiKey = '';
         localStorage.removeItem('anthropicApiKey');
         updateAgentSetupStatus();
-        agentShowToast('API key cleared.');
+        agentShowToast('API-Key gelöscht.');
     });
 
     modelSelect.addEventListener('change', (e) => {
@@ -865,10 +865,10 @@ function updateAgentSetupStatus() {
     const el = document.getElementById('setupStatus');
     if (!el) return;
     if (agentState.apiKey) {
-        el.textContent = 'Configured ✓';
+        el.textContent = 'Konfiguriert ✓';
         el.className = 'setup-status configured';
     } else {
-        el.textContent = 'API Key Required';
+        el.textContent = 'API-Key erforderlich';
         el.className = 'setup-status not-configured';
     }
 }
@@ -885,7 +885,7 @@ async function handleAgentSend() {
     if (!text || agentState.isLoading) return;
 
     if (!agentState.apiKey) {
-        agentAppendError('Please enter your Anthropic API key in the Agent Setup section above to use the AI assistant.');
+        agentAppendError('Bitte trage deinen Anthropic-API-Key im Bereich „Agent-Einrichtung" ein, um den KI-Assistenten zu nutzen.');
         return;
     }
 
@@ -901,7 +901,7 @@ async function handleAgentSend() {
         agentState.messages.push({ role: 'assistant', content: reply });
         agentAppendAssistantMessage(reply);
     } catch (err) {
-        agentAppendError('Error communicating with Claude: ' + err.message);
+        agentAppendError('Fehler bei der Kommunikation mit Claude: ' + err.message);
         agentState.messages.pop();
     } finally {
         setAgentLoading(false);
@@ -946,7 +946,7 @@ function agentAppendUserMessage(text) {
     div.className = 'agent-message user-message';
     div.innerHTML = `
         <div class="message-content user-bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
-        <div class="user-avatar">You</div>
+        <div class="user-avatar">Du</div>
     `;
     container.appendChild(div);
     agentScrollToBottom();
@@ -965,14 +965,14 @@ function agentAppendAssistantMessage(text) {
         <div class="message-content">
             ${rendered}
             <div class="message-actions">
-                <button class="msg-action-btn copy-msg-btn">Copy response</button>
-                ${booleanStr ? `<button class="msg-action-btn send-to-gen-btn">&#128269; Send to Generator</button>` : ''}
+                <button class="msg-action-btn copy-msg-btn">Antwort kopieren</button>
+                ${booleanStr ? `<button class="msg-action-btn send-to-gen-btn">&#128269; An Generator senden</button>` : ''}
             </div>
         </div>
     `;
 
     div.querySelector('.copy-msg-btn').addEventListener('click', () => {
-        navigator.clipboard.writeText(text).then(() => agentShowToast('Copied to clipboard!'));
+        navigator.clipboard.writeText(text).then(() => agentShowToast('In die Zwischenablage kopiert!'));
     });
 
     if (booleanStr) {
@@ -1037,7 +1037,7 @@ function sendBooleanToGenerator(query) {
     saveToHistory(query);
 
     document.getElementById('resultBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    agentShowToast('Boolean string sent to Generator!');
+    agentShowToast('Boolean-String an Generator gesendet!');
 }
 
 // ---- Markdown Renderer ----
@@ -1127,18 +1127,18 @@ function looksLikeBoolean(str) {
 
 function buildWelcomeMessageHTML() {
     return `<div class="agent-message assistant-message">
-        <div class="agent-avatar">AI</div>
+        <div class="agent-avatar">KI</div>
         <div class="message-content">
-            <p>Hello! I'm your AI Recruiting Assistant powered by Claude. I can help you:</p>
+            <p>Hallo! Ich bin dein KI-Recruiting-Assistent, angetrieben von Claude. Ich helfe dir bei:</p>
             <ul class="agent-list">
-                <li>Generate Boolean search strings from job descriptions</li>
-                <li>Write personalized InMail &amp; outreach messages</li>
-                <li>Create targeted interview question sets</li>
-                <li>Draft compelling job postings</li>
-                <li>Screen and evaluate candidate profiles</li>
-                <li>Advise on sourcing &amp; recruiting strategy</li>
+                <li>Boolean-Suchstrings aus Stellenbeschreibungen generieren</li>
+                <li>Personalisierte InMail- &amp; Outreach-Nachrichten schreiben</li>
+                <li>Gezielte Interviewfragen-Sets erstellen</li>
+                <li>Überzeugende Stellenausschreibungen verfassen</li>
+                <li>Kandidatenprofile sichten und bewerten</li>
+                <li>Sourcing- &amp; Recruiting-Strategie beraten</li>
             </ul>
-            <p>Use the Quick Actions above or type your question below to get started!</p>
+            <p>Nutze die Schnellaktionen oben oder tippe deine Frage unten ein!</p>
         </div>
     </div>`;
 }
