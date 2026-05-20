@@ -786,13 +786,21 @@ const agentState = {
 };
 
 function initAgent() {
-    agentState.apiKey = localStorage.getItem('anthropicApiKey') || '';
-    agentState.model = localStorage.getItem('agentModel') || 'claude-sonnet-4-6';
+    // Vorkonfigurierter Firmen-Key hat Vorrang vor localStorage
+    const preconfigured = window.ANTHROPIC_CONFIG?.apiKey || '';
+    agentState.apiKey = preconfigured || localStorage.getItem('anthropicApiKey') || '';
+    agentState.model = window.ANTHROPIC_CONFIG?.model || localStorage.getItem('agentModel') || 'claude-sonnet-4-6';
 
     const apiKeyInput = document.getElementById('apiKeyInput');
     const modelSelect = document.getElementById('modelSelect');
     if (apiKeyInput) apiKeyInput.value = agentState.apiKey;
     if (modelSelect) modelSelect.value = agentState.model;
+
+    // Setup-Panel ausblenden wenn Key bereits hinterlegt ist
+    if (preconfigured) {
+        const setupCard = document.querySelector('.agent-setup-card');
+        if (setupCard) setupCard.style.display = 'none';
+    }
 
     updateAgentSetupStatus();
 
