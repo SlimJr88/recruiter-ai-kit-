@@ -235,34 +235,6 @@ Standort: Berlin oder München (hybrid)"></textarea>
         <!-- TAB 3: KI-Recruiting-Agent -->
         <div class="tab-content" id="tab-agent">
 
-            <!-- API-Einrichtung -->
-            <section class="card agent-setup-card">
-                <div class="agent-setup-header" id="agentSetupToggle">
-                    <h2>&#9881; Agent-Einrichtung</h2>
-                    <span class="setup-status not-configured" id="setupStatus">API-Key erforderlich</span>
-                    <span class="setup-chevron" id="toggleSetupBtn">&#9660;</span>
-                </div>
-                <div class="agent-setup-body" id="agentSetupBody">
-                    <p class="section-hint">
-                        Gib deinen Anthropic-API-Key ein, um den KI-Agenten zu aktivieren. Der Key wird
-                        ausschlie&szlig;lich in deinem Browser gespeichert (<code>localStorage</code>) und
-                        direkt an Anthropic gesendet &mdash; niemals an Dritte.
-                    </p>
-                    <div class="api-key-row">
-                        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
-                        <button class="btn btn-primary" id="saveApiKeyBtn">Key speichern</button>
-                        <button class="btn btn-secondary" id="clearApiKeyBtn">L&ouml;schen</button>
-                    </div>
-                    <div class="model-select-row">
-                        <label>Modell:</label>
-                        <select id="modelSelect">
-                            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 &mdash; Schnell &amp; G&uuml;nstig</option>
-                            <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 &mdash; Leistungsst&auml;rkst</option>
-                        </select>
-                    </div>
-                </div>
-            </section>
-
             <!-- Schnellaktionen -->
             <section class="card">
                 <h2>Schnellaktionen</h2>
@@ -311,16 +283,16 @@ Standort: Berlin oder München (hybrid)"></textarea>
                     <div class="agent-message assistant-message">
                         <div class="agent-avatar">KI</div>
                         <div class="message-content">
-                            <p>Hallo! Ich bin dein KI-Recruiting-Assistent, angetrieben von Claude. Ich helfe dir bei:</p>
+                            <p>Hallo! Ich bin dein <strong>Recruiting-Assistent</strong>. Ich helfe dir sofort &ndash; kein API-Key erforderlich:</p>
                             <ul class="agent-list">
-                                <li>Boolean-Suchstrings aus Stellenbeschreibungen generieren</li>
-                                <li>Personalisierte InMail- &amp; Outreach-Nachrichten schreiben</li>
-                                <li>Gezielte Interviewfragen-Sets erstellen</li>
-                                <li>&Uuml;berzeugende Stellenausschreibungen verfassen</li>
-                                <li>Kandidatenprofile sichten und bewerten</li>
-                                <li>Sourcing- &amp; Recruiting-Strategie beraten</li>
+                                <li>&#128269; <strong>Boolean-Suchstrings</strong> &ndash; optimiert f&uuml;r LinkedIn, Google X-Ray &amp; GitHub</li>
+                                <li>&#9993; <strong>Outreach-Vorlagen</strong> &ndash; personalisierte InMail-Nachrichten</li>
+                                <li>&#127919; <strong>Interviewfragen</strong> &ndash; rollenspezifische Kataloge</li>
+                                <li>&#128221; <strong>Stellenausschreibungen</strong> &ndash; moderne Vorlagen</li>
+                                <li>&#128100; <strong>Screening-Checklisten</strong> &ndash; strukturierte Kandidatenbewertung</li>
+                                <li>&#128161; <strong>Sourcing-Strategie</strong> &ndash; Plattformen, Tipps &amp; Gehaltsrahmen</li>
                             </ul>
-                            <p>Nutze die Schnellaktionen oben oder tippe deine Frage unten ein!</p>
+                            <p>Nutze die <strong>Schnellaktionen</strong> oben oder schreib direkt, f&uuml;r welche Rolle du suchst!</p>
                         </div>
                     </div>
                 </div>

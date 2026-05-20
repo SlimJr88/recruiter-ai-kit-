@@ -831,202 +831,643 @@ function renderHistory() {
 }
 
 // =============================================
-// AI RECRUITING AGENT
+// REGEL-BASIERTER RECRUITING-ASSISTENT
 // =============================================
 
-const AGENT_SYSTEM_PROMPT = `You are an expert AI Recruiting Assistant embedded in the Recruiter AI Kit tool. You have deep expertise in talent acquisition, technical recruiting, Boolean search, sourcing, and hiring best practices.
-
-Your core capabilities:
-1. **Boolean Search Strings**: Generate optimized Boolean search strings for LinkedIn, Google X-Ray, GitHub, and XING. Use proper operators: AND, OR, NOT, quotes for exact phrases, parentheses for grouping. Always put the Boolean string inside a code block so it can be copied easily.
-2. **Outreach Messages**: Write personalized, compelling InMail messages and cold emails that get high response rates. Include [PLACEHOLDER] markers for customization.
-3. **Interview Questions**: Generate targeted, role-specific question sets grouped by category: Technical, Behavioral, Culture Fit, and Role-Specific.
-4. **Job Postings**: Write attractive, inclusive job descriptions that attract top talent. Avoid jargon and focus on impact and growth.
-5. **Candidate Screening**: Analyze resumes and candidate profiles against job requirements. Provide a structured evaluation with strengths, gaps, and a recommendation.
-6. **Recruiting Strategy**: Give tactical, actionable advice on sourcing, pipeline management, employer branding, and hiring process optimization.
-
-Guidelines:
-- Be concise and actionable. Recruiters are busy professionals.
-- For Boolean strings, ALWAYS wrap them in a code block (\`\`\`) for easy copying.
-- For outreach messages, provide complete, ready-to-use templates.
-- For interview questions, organize them clearly by category with 3-5 questions each.
-- Always ask for clarification if the role or context is unclear.
-- When you don't know something, say so honestly.`;
-
-const AGENT_QUICK_PROMPTS = {
-    boolean: 'Ich brauche einen Boolean-Suchstring für eine Stelle. Füge bitte die Stellenbeschreibung unten ein – ich erstelle daraus eine optimierte Suche für LinkedIn, Google X-Ray und GitHub.\n\nStellenbeschreibung:',
-    outreach: 'Ich möchte eine personalisierte Outreach-/InMail-Nachricht schreiben. Bitte teile mir mit:\n1. Die Stelle, für die du recruitest\n2. Wichtige Vorteile (Unternehmen, Team, Wachstum, Gehalt)\n3. Infos zum Zielkandidaten (optional)\n\nStelle, für die ich recruite:',
-    interview: 'Ich benötige einen umfassenden Interviewfragen-Katalog. Bitte nenne mir Jobtitel und Kernanforderungen – ich generiere Fragen zu Fachkompetenz, Verhalten, Kulturfit und rollenspezifischen Themen.\n\nRolle und Kernanforderungen:',
-    jobpost: 'Ich brauche Hilfe beim Verfassen einer überzeugenden Stellenausschreibung. Bitte angeben:\n- Jobtitel\n- Unternehmensname & Kultur\n- Hauptaufgaben (3–5 Punkte)\n- Benötigte Skills/Erfahrung\n\nLegen wir los – Jobtitel und Unternehmen:',
-    screen: 'Ich möchte einen Kandidaten für eine Stelle prüfen. Bitte stelle bereit:\n1. Die Stellenanforderungen\n2. Das Profil oder den Lebenslauf des Kandidaten\n\nIch liefere eine strukturierte Bewertung mit Stärken, Lücken und Empfehlung.\n\nStelleanforderungen:',
-    strategy: 'Ich kann bei Recruiting-Strategie und Sourcing-Best-Practices helfen. Welche Herausforderung hast du? Zum Beispiel:\n- „Wie finde ich passive Kandidaten für [Rolle]?"\n- „Wie verbessere ich meine InMail-Antwortrate?"\n- „Was ist der beste Ansatz, um [Rolle] schnell zu besetzen?"\n\nDeine Frage:',
+const ROLE_KB = {
+    java: {
+        titles: ['Java Developer', 'Java Engineer', 'Software Engineer', 'Backend Developer', 'Java Entwickler'],
+        mustSkills: ['Java'],
+        niceSkills: ['Spring Boot', 'Maven', 'Microservices', 'REST', 'SQL', 'Docker', 'Git'],
+        seniorNiceSkills: ['Kubernetes', 'AWS', 'Kafka', 'DDD', 'Architecture', 'Azure'],
+        platforms: ['LinkedIn', 'GitHub', 'XING'],
+        salary: '55.000 – 95.000 € (Senior bis 115.000 €)',
+        tip: 'Java-Entwickler sind aktiv auf GitHub und Stack Overflow. Suche nach Open-Source-Contributions.',
+    },
+    python: {
+        titles: ['Python Developer', 'Python Engineer', 'Software Engineer', 'Backend Developer'],
+        mustSkills: ['Python'],
+        niceSkills: ['Django', 'FastAPI', 'Flask', 'SQL', 'PostgreSQL', 'Docker', 'Git'],
+        seniorNiceSkills: ['Kubernetes', 'AWS', 'Machine Learning', 'TensorFlow', 'Airflow'],
+        platforms: ['LinkedIn', 'GitHub', 'Kaggle'],
+        salary: '55.000 – 95.000 €',
+        tip: 'Python-Profile sind auf GitHub und Kaggle stark vertreten. Kaggle-Notebooks zeigen praktische Datenkompetenz.',
+    },
+    frontend: {
+        titles: ['Frontend Developer', 'Frontend Engineer', 'Web Developer', 'React Developer', 'UI Developer'],
+        mustSkills: ['JavaScript', 'HTML', 'CSS'],
+        niceSkills: ['React', 'Vue', 'Angular', 'TypeScript', 'Next.js', 'Figma', 'Git'],
+        seniorNiceSkills: ['Performance Optimization', 'Accessibility', 'Design Systems', 'GraphQL'],
+        platforms: ['LinkedIn', 'GitHub', 'Dribbble'],
+        salary: '48.000 – 88.000 €',
+        tip: 'Frontend-Entwickler zeigen ihre Arbeit auf GitHub Pages, CodePen oder eigenen Portfolios.',
+    },
+    fullstack: {
+        titles: ['Full Stack Developer', 'Fullstack Developer', 'Fullstack Engineer', 'Software Engineer'],
+        mustSkills: ['JavaScript'],
+        niceSkills: ['React', 'Node.js', 'TypeScript', 'SQL', 'Docker', 'HTML', 'CSS', 'Git'],
+        seniorNiceSkills: ['AWS', 'Kubernetes', 'GraphQL', 'Next.js', 'Architecture'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '55.000 – 95.000 €',
+        tip: 'Full-Stack-Profile haben typischerweise sowohl Frontend- als auch Backend-Projekte auf GitHub.',
+    },
+    backend: {
+        titles: ['Backend Developer', 'Backend Engineer', 'Software Engineer'],
+        mustSkills: ['REST', 'SQL'],
+        niceSkills: ['Java', 'Python', 'Node.js', 'PostgreSQL', 'Docker', 'Microservices', 'Git'],
+        seniorNiceSkills: ['Kubernetes', 'AWS', 'Kafka', 'Architecture'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '55.000 – 95.000 €',
+        tip: 'Backend-Entwickler sind auf GitHub mit serverseitigen Projekten aktiv.',
+    },
+    devops: {
+        titles: ['DevOps Engineer', 'Site Reliability Engineer', 'SRE', 'Platform Engineer', 'Cloud Engineer'],
+        mustSkills: ['CI/CD', 'Linux'],
+        niceSkills: ['Docker', 'Kubernetes', 'Terraform', 'AWS', 'Azure', 'Jenkins', 'Ansible'],
+        seniorNiceSkills: ['Helm', 'Prometheus', 'Grafana', 'Security', 'FinOps'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '65.000 – 105.000 €',
+        tip: 'DevOps-Engineers haben IaC-Repositories auf GitHub. Suche nach Terraform- und Kubernetes-Projekten.',
+    },
+    data: {
+        titles: ['Data Scientist', 'Data Analyst', 'Machine Learning Engineer', 'ML Engineer', 'Data Engineer'],
+        mustSkills: ['Python', 'SQL'],
+        niceSkills: ['Machine Learning', 'TensorFlow', 'PyTorch', 'Pandas', 'Spark', 'Tableau', 'Power BI'],
+        seniorNiceSkills: ['Databricks', 'Snowflake', 'Airflow', 'MLOps', 'Deep Learning', 'NLP'],
+        platforms: ['LinkedIn', 'GitHub', 'Kaggle'],
+        salary: '58.000 – 100.000 €',
+        tip: 'Data Scientists sind auf Kaggle in Wettbewerben aktiv. Öffentliche Notebooks zeigen echte Kompetenz.',
+    },
+    mobile: {
+        titles: ['iOS Developer', 'Android Developer', 'Mobile Developer', 'Flutter Developer', 'React Native Developer'],
+        mustSkills: ['Swift', 'Kotlin'],
+        niceSkills: ['SwiftUI', 'Jetpack Compose', 'React Native', 'Flutter', 'Git', 'REST'],
+        seniorNiceSkills: ['Architecture', 'CI/CD', 'Testing', 'App Store Optimization'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '58.000 – 95.000 €',
+        tip: 'Mobile Developer haben oft Apps im App Store oder Play Store. Suche direkt nach den App-Namen.',
+    },
+    product: {
+        titles: ['Product Manager', 'Senior Product Manager', 'Product Owner', 'Technical Product Manager'],
+        mustSkills: ['Agile', 'Scrum'],
+        niceSkills: ['Jira', 'Confluence', 'OKR', 'Stakeholder Management', 'User Research', 'Roadmap'],
+        seniorNiceSkills: ['Strategy', 'Data Analysis', 'B2B', 'SaaS', 'Go-to-Market', 'P&L'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '65.000 – 110.000 €',
+        tip: 'Product Manager schreiben oft auf LinkedIn über PM-Themen. Engagement in PM-Communities ist ein gutes Signal.',
+    },
+    ux: {
+        titles: ['UX Designer', 'UI Designer', 'Product Designer', 'UX/UI Designer', 'Interaction Designer'],
+        mustSkills: ['Figma'],
+        niceSkills: ['Sketch', 'Adobe XD', 'User Research', 'Prototyping', 'Wireframing', 'Design System'],
+        seniorNiceSkills: ['Design Thinking', 'Usability Testing', 'Accessibility', 'Motion Design'],
+        platforms: ['LinkedIn', 'Dribbble', 'Behance'],
+        salary: '48.000 – 85.000 €',
+        tip: 'Designer haben Portfolios auf Dribbble oder Behance. Google X-Ray auf diese Plattformen funktioniert sehr gut.',
+    },
+    hr: {
+        titles: ['HR Manager', 'HR Business Partner', 'People Manager', 'Personalreferent', 'Head of People'],
+        mustSkills: ['Personalmanagement'],
+        niceSkills: ['Recruiting', 'Employer Branding', 'Arbeitsrecht', 'Personio', 'Workday', 'SAP HR'],
+        seniorNiceSkills: ['Organizational Development', 'Change Management', 'HR Strategy', 'Compensation'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '45.000 – 85.000 €',
+        tip: 'HR-Fachleute sind sehr aktiv auf LinkedIn und XING. HR-Gruppen eignen sich gut für passives Sourcing.',
+    },
+    sales: {
+        titles: ['Sales Manager', 'Account Executive', 'Key Account Manager', 'Vertriebsleiter', 'Sales Director'],
+        mustSkills: ['B2B'],
+        niceSkills: ['Salesforce', 'CRM', 'SaaS', 'Lead Generation', 'Verhandlung', 'Account Management'],
+        seniorNiceSkills: ['Enterprise Sales', 'Team Leadership', 'Revenue Growth', 'Go-to-Market'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '50.000 – 100.000 € fix + variabel',
+        tip: 'Sales-Profile mit hohen Verbindungszahlen auf LinkedIn sind aktive Networker – oft offen für Kontakte.',
+    },
+    marketing: {
+        titles: ['Marketing Manager', 'Digital Marketing Manager', 'Online Marketing Manager', 'Growth Manager'],
+        mustSkills: ['Digital Marketing'],
+        niceSkills: ['SEO', 'SEA', 'Google Analytics', 'HubSpot', 'Content Marketing', 'Social Media'],
+        seniorNiceSkills: ['Marketing Automation', 'Performance Marketing', 'Brand Strategy', 'Demand Generation'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '45.000 – 80.000 €',
+        tip: 'Marketing-Fachleute zeigen Zertifikate (Google, HubSpot) auf LinkedIn. Filterung nach Badges ist effektiv.',
+    },
+    scrum: {
+        titles: ['Scrum Master', 'Agile Coach', 'Agile Delivery Manager'],
+        mustSkills: ['Scrum', 'Agile'],
+        niceSkills: ['Kanban', 'SAFe', 'Jira', 'Confluence', 'Facilitation', 'Coaching'],
+        seniorNiceSkills: ['Organizational Transformation', 'PI Planning', 'Training', 'Culture Change'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '60.000 – 100.000 €',
+        tip: 'Scrum Masters haben Zertifizierungen (PSM, CSM) auf LinkedIn. Filterung nach Zertifikaten sehr wirksam.',
+    },
+    security: {
+        titles: ['Security Engineer', 'Cybersecurity Analyst', 'Penetration Tester', 'Information Security Specialist'],
+        mustSkills: ['Cybersecurity'],
+        niceSkills: ['SIEM', 'SOC', 'OWASP', 'Penetration Testing', 'ISO 27001', 'Encryption', 'Linux'],
+        seniorNiceSkills: ['Zero Trust', 'Cloud Security', 'Incident Response', 'Red Team', 'GRC'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '60.000 – 105.000 €',
+        tip: 'Security-Experten sind in Communities wie OWASP Germany und BSI aktiv. CTF-Wettbewerbe sind ein gutes Recherchesignal.',
+    },
+    it_support: {
+        titles: ['Fachinformatiker Systemintegration', 'IT-Administrator', 'Systemadministrator', 'IT Support Spezialist', 'Helpdesk Technician'],
+        mustSkills: ['ITIL', 'Windows'],
+        niceSkills: ['Active Directory', 'Windows Server', 'VPN', 'SharePoint', 'Microsoft Teams', 'RDP'],
+        seniorNiceSkills: ['Azure AD', 'Intune', 'SCCM', 'PowerShell', 'Exchange', 'Virtualisierung'],
+        platforms: ['LinkedIn', 'XING'],
+        salary: '35.000 – 55.000 €',
+        tip: 'IT-Support-Profile sind besonders stark auf XING vertreten. Für diese Zielgruppe ist XING oft effektiver als LinkedIn.',
+    },
+    cloud: {
+        titles: ['Cloud Architect', 'Cloud Engineer', 'Solutions Architect', 'AWS Architect', 'Azure Architect'],
+        mustSkills: ['AWS', 'Cloud'],
+        niceSkills: ['Azure', 'GCP', 'Terraform', 'Kubernetes', 'Docker', 'CI/CD', 'Linux'],
+        seniorNiceSkills: ['FinOps', 'Multi-Cloud', 'Security', 'Architecture', 'Cost Optimization'],
+        platforms: ['LinkedIn', 'GitHub'],
+        salary: '80.000 – 130.000 €',
+        tip: 'Cloud-Architekten haben AWS/Azure-Zertifikate auf LinkedIn. Filtere gezielt nach diesen Zertifizierungen.',
+    },
 };
+
+function detectRoleFromText(text) {
+    const t = text.toLowerCase();
+    if (/\bjava\b/.test(t) && !/javascript/.test(t)) return 'java';
+    if (/\bpython\b/.test(t)) return 'python';
+    if (/\b(react|angular|vue|frontend|front.end|ui developer|react developer)\b/.test(t)) return 'frontend';
+    if (/\b(fullstack|full.stack|full stack)\b/.test(t)) return 'fullstack';
+    if (/\b(javascript|typescript)\b/.test(t) && !/fullstack|full.stack/.test(t)) return 'frontend';
+    if (/\bbackend\b/.test(t)) return 'backend';
+    if (/\b(devops|sre|platform eng|cloud eng|site reliability)\b/.test(t)) return 'devops';
+    if (/\b(data sci|ml eng|machine learn|data eng|data anal|datascien)\b/.test(t)) return 'data';
+    if (/\b(ios|android|mobile dev|flutter|react native)\b/.test(t)) return 'mobile';
+    if (/\b(product manager|product owner|\bpm\b|\bpo\b)\b/.test(t)) return 'product';
+    if (/\b(ux|ui design|product design|user experi|interaction design)\b/.test(t)) return 'ux';
+    if (/\b(hr manager|hr business|personalref|people manager|head of people|personalabt)\b/.test(t)) return 'hr';
+    if (/\b(sales manager|vertrieb|account exec|key account|sales director)\b/.test(t)) return 'sales';
+    if (/\b(marketing manager|online marketing|digital marketing|growth manager|seo manager)\b/.test(t)) return 'marketing';
+    if (/\b(scrum master|agile coach|agile delivery)\b/.test(t)) return 'scrum';
+    if (/\b(security eng|cybersec|penetration|soc analyst|ciso)\b/.test(t)) return 'security';
+    if (/\b(fachinformatiker|systemadmin|it.?support|helpdesk|workplace eng|it.?admin)\b/.test(t)) return 'it_support';
+    if (/\b(cloud arch|aws arch|azure arch|solutions arch)\b/.test(t)) return 'cloud';
+    if (/\b(aws|azure|gcp)\b/.test(t) && /\b(arch|engineer|specialist)\b/.test(t)) return 'cloud';
+    return null;
+}
+
+function detectSeniority(text) {
+    const t = text.toLowerCase();
+    if (/\b(junior|jr\.|entry.level|berufseinsteiger|absolvent|graduate|anfänger)\b/.test(t)) return 'junior';
+    if (/\b(senior|sr\.|lead|principal|staff|expert|erfahren)\b/.test(t)) return 'senior';
+    if (/\b(manager|director|vp|chief|leiter|head)\b/.test(t)) return 'manager';
+    return 'mid';
+}
+
+function detectPlatform(text) {
+    const t = text.toLowerCase();
+    if (/\b(google|x.?ray|site:)\b/.test(t)) return 'google';
+    if (/\bgithub\b/.test(t)) return 'github';
+    if (/\bxing\b/.test(t)) return 'xing';
+    return 'linkedin';
+}
+
+function buildBooleanFromRole(roleKey, seniority, platform) {
+    const role = ROLE_KB[roleKey];
+    if (!role) return null;
+
+    let titles = [...role.titles];
+    if (seniority === 'senior') {
+        titles = [`Senior ${role.titles[0]}`, `Lead ${role.titles[0]}`, ...role.titles.slice(0, 3)];
+    } else if (seniority === 'junior') {
+        titles = [`Junior ${role.titles[0]}`, ...role.titles.slice(0, 3)];
+    }
+
+    const niceSkills = seniority === 'senior'
+        ? [...role.niceSkills.slice(0, 3), ...(role.seniorNiceSkills || []).slice(0, 3)]
+        : role.niceSkills.slice(0, 6);
+
+    const and = platform === 'xing' ? ' UND ' : ' AND ';
+    const not = platform === 'xing' ? ' NICHT ' : ' NOT ';
+    const or = ' OR ';
+
+    const titleGroup = `(${titles.map(t => `"${t}"`).join(or)})`;
+    const must = role.mustSkills.map(s => s.includes(' ') ? `"${s}"` : s).join(and);
+    const nice = niceSkills.length ? `(${niceSkills.map(s => s.includes(' ') ? `"${s}"` : s).join(or)})` : '';
+
+    const parts = platform === 'google'
+        ? ['site:linkedin.com/in', titleGroup]
+        : platform === 'github'
+            ? ['site:github.com', titleGroup]
+            : [titleGroup];
+
+    if (must) parts.push(must);
+    if (nice) parts.push(nice);
+
+    return parts.join(and) + not + '"Intern"' + not + '"Werkstudent"' + not + '"Praktikant"';
+}
+
+function detectIntent(t) {
+    if (/\b(boolean|suchstring|search.?string|such.?für|kandidat.?find)\b/.test(t) ||
+        /^(erstell|generi|bau|mach).*(boolean|suche?|string)/i.test(t) ||
+        /^(ich suche|wir suchen|suche?).*(entwickler|manager|designer|ingenieur|analyst|spezialist)/i.test(t)) return 'boolean';
+    if (/\b(outreach|anschreiben|inmail|nachricht.?schreib|kontaktier|kaltakquise|template)\b/.test(t)) return 'outreach';
+    if (/\b(interview.?fragen?|vorstellungsgespräch|fragenkatalog)\b/.test(t)) return 'interview';
+    if (/\b(stellenanzeige|stellenausschreibung|job.?posting|job.?ad)\b/.test(t)) return 'jobpost';
+    if (/\b(screening|profil.?prüf|kandidat.?bewert|lebenslauf)\b/.test(t)) return 'screen';
+    if (/\b(strategie|tipp|wo.?(finde|suche)|sourcing|active.?sourcing|passive.?kandidat)\b/.test(t)) return 'strategy';
+    if (/\b(gehalt|salary|vergütung|compensation|lohn)\b/.test(t)) return 'salary';
+    if (/\b(hilfe|help|was.?kann|wie.?nutze|anleitung|funktion)\b/.test(t)) return 'help';
+    return 'unknown';
+}
 
 const agentState = {
     messages: [],
     isLoading: false,
-    apiKey: '',
-    model: 'claude-sonnet-4-6',
+    flow: null,
 };
 
 function initAgent() {
-    // Vorkonfigurierter Firmen-Key hat Vorrang vor localStorage
-    const preconfigured = window.ANTHROPIC_CONFIG?.apiKey || '';
-    agentState.apiKey = preconfigured || localStorage.getItem('anthropicApiKey') || '';
-    agentState.model = window.ANTHROPIC_CONFIG?.model || localStorage.getItem('agentModel') || 'claude-sonnet-4-6';
-
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const modelSelect = document.getElementById('modelSelect');
-    if (apiKeyInput) apiKeyInput.value = agentState.apiKey;
-    if (modelSelect) modelSelect.value = agentState.model;
-
-    // Setup-Panel ausblenden wenn Key bereits hinterlegt ist
-    if (preconfigured) {
-        const setupCard = document.querySelector('.agent-setup-card');
-        if (setupCard) setupCard.style.display = 'none';
-    }
-
-    updateAgentSetupStatus();
-
-    // Setup panel toggle
-    document.getElementById('agentSetupToggle').addEventListener('click', () => {
-        const body = document.getElementById('agentSetupBody');
-        const chevron = document.getElementById('toggleSetupBtn');
-        const collapsed = body.classList.toggle('collapsed');
-        chevron.textContent = collapsed ? '▼' : '▲';
-    });
-
-    // API key management
-    document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
-        const key = apiKeyInput.value.trim();
-        agentState.apiKey = key;
-        if (key) {
-            localStorage.setItem('anthropicApiKey', key);
-        } else {
-            localStorage.removeItem('anthropicApiKey');
-        }
-        updateAgentSetupStatus();
-        agentShowToast(key ? 'API-Key gespeichert!' : 'API-Key gelöscht.');
-    });
-
-    document.getElementById('clearApiKeyBtn').addEventListener('click', () => {
-        apiKeyInput.value = '';
-        agentState.apiKey = '';
-        localStorage.removeItem('anthropicApiKey');
-        updateAgentSetupStatus();
-        agentShowToast('API-Key gelöscht.');
-    });
-
-    modelSelect.addEventListener('change', (e) => {
-        agentState.model = e.target.value;
-        localStorage.setItem('agentModel', agentState.model);
-    });
-
-    // Quick action buttons
     document.querySelectorAll('.quick-action-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const prompt = AGENT_QUICK_PROMPTS[btn.dataset.action];
-            if (!prompt) return;
-            const input = document.getElementById('agentInput');
-            input.value = prompt;
-            updateCharCounter();
-            input.focus();
+            const action = btn.dataset.action;
+            agentState.flow = action + '_ask_role';
+            const welcome = getQuickActionWelcome(action);
+            agentAppendAssistantMessage(welcome);
             document.getElementById('agentMessages').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('agentInput').focus();
         });
     });
 
-    // Chat input
     const agentInput = document.getElementById('agentInput');
     agentInput.addEventListener('input', updateCharCounter);
     agentInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleAgentSend();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAgentSend(); }
     });
 
     document.getElementById('agentSendBtn').addEventListener('click', handleAgentSend);
-
     document.getElementById('resetChatBtn').addEventListener('click', () => {
         agentState.messages = [];
+        agentState.flow = null;
         document.getElementById('agentMessages').innerHTML = buildWelcomeMessageHTML();
     });
 }
 
-function updateAgentSetupStatus() {
-    const el = document.getElementById('setupStatus');
-    if (!el) return;
-    if (agentState.apiKey) {
-        el.textContent = 'Konfiguriert ✓';
-        el.className = 'setup-status configured';
-    } else {
-        el.textContent = 'API-Key erforderlich';
-        el.className = 'setup-status not-configured';
-    }
-}
-
 function updateCharCounter() {
-    const input = document.getElementById('agentInput');
     const counter = document.getElementById('charCounter');
-    if (counter) counter.textContent = input.value.length;
+    if (counter) counter.textContent = document.getElementById('agentInput').value.length;
 }
 
-async function handleAgentSend() {
+function handleAgentSend() {
     const input = document.getElementById('agentInput');
     const text = input.value.trim();
     if (!text || agentState.isLoading) return;
 
-    if (!agentState.apiKey) {
-        agentAppendError('Bitte trage deinen Anthropic-API-Key im Bereich „Agent-Einrichtung" ein, um den KI-Assistenten zu nutzen.');
-        return;
-    }
-
     input.value = '';
     updateCharCounter();
-
     agentState.messages.push({ role: 'user', content: text });
     agentAppendUserMessage(text);
     setAgentLoading(true);
 
-    try {
-        const reply = await callClaudeAPI(agentState.messages);
-        agentState.messages.push({ role: 'assistant', content: reply });
-        agentAppendAssistantMessage(reply);
-    } catch (err) {
-        agentAppendError('Fehler bei der Kommunikation mit Claude: ' + err.message);
-        agentState.messages.pop();
-    } finally {
-        setAgentLoading(false);
+    setTimeout(() => {
+        try {
+            const reply = ruleBasedResponse(text);
+            agentState.messages.push({ role: 'assistant', content: reply });
+            agentAppendAssistantMessage(reply);
+        } catch (err) {
+            agentAppendError('Fehler: ' + err.message);
+        } finally {
+            setAgentLoading(false);
+        }
+    }, 300 + Math.random() * 400);
+}
+
+function ruleBasedResponse(userMessage) {
+    const msg = userMessage.trim();
+    const lower = msg.toLowerCase();
+
+    if (agentState.flow) {
+        const flow = agentState.flow;
+        agentState.flow = null;
+        switch (flow) {
+            case 'boolean_ask_role': return handleBooleanIntent(msg, lower);
+            case 'outreach_ask_role': return handleOutreachIntent(msg, lower);
+            case 'interview_ask_role': return handleInterviewIntent(msg, lower);
+            case 'jobpost_ask_role': return handleJobpostIntent(msg, lower);
+            case 'screen_ask_role': return handleScreenIntent(msg, lower);
+            case 'strategy_ask_role': return handleStrategyIntent(msg, lower);
+            case 'salary_ask_role': return handleSalaryIntent(lower);
+        }
+    }
+
+    const intent = detectIntent(lower);
+    switch (intent) {
+        case 'boolean': return handleBooleanIntent(msg, lower);
+        case 'outreach': return handleOutreachIntent(msg, lower);
+        case 'interview': return handleInterviewIntent(msg, lower);
+        case 'jobpost': return handleJobpostIntent(msg, lower);
+        case 'screen': return handleScreenIntent(msg, lower);
+        case 'strategy': return handleStrategyIntent(msg, lower);
+        case 'salary': return handleSalaryIntent(lower);
+        case 'help': return handleHelpResponse();
+        default: return handleUnknownIntent(msg, lower);
     }
 }
 
-async function callClaudeAPI(messages) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-            'x-api-key': agentState.apiKey,
-            'anthropic-version': '2023-06-01',
-            'content-type': 'application/json',
-            'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-            model: agentState.model,
-            max_tokens: 2048,
-            system: AGENT_SYSTEM_PROMPT,
-            messages,
-        }),
-    });
+function getQuickActionWelcome(action) {
+    const map = {
+        boolean: `## 🔍 Boolean-Suche erstellen\n\nFür welche Stelle suchst du Kandidaten?\n\nNenne mir **Jobtitel** und optional Seniority oder Skills – ich generiere sofort einen optimierten Suchstring für LinkedIn, Google X-Ray, GitHub und XING.\n\n**Beispiele:**\n- "Senior Java Developer mit Kubernetes"\n- "UX Designer für mobile Apps"\n- "DevOps Engineer AWS"\n- "Fachinformatiker Systemintegration ITIL"`,
+        outreach: `## ✉️ Outreach-Anschreiben\n\nFür welche **Rolle** möchtest du eine InMail-Nachricht schreiben?\n\nNenne mir Jobtitel und optional 1–2 Besonderheiten der Stelle.`,
+        interview: `## 🎯 Interviewfragen erstellen\n\nFür welche **Rolle** soll ich einen Fragenkatalog erstellen?\n\nIch liefere Fragen zu Fachkompetenz, Verhalten, Kulturfit und rollenspezifischen Themen.`,
+        jobpost: `## 📝 Stellenausschreibung\n\nFür welchen **Jobtitel** soll ich eine Vorlage erstellen?\n\nNenne mir Jobtitel und optional Unternehmenskontext.`,
+        screen: `## 👤 Kandidaten-Screening\n\nFür welche **Rolle** soll ich eine Screening-Checkliste erstellen?\n\nNenne mir den Jobtitel.`,
+        strategy: `## 💡 Sourcing-Strategie\n\nFür welche **Rolle oder Zielgruppe** brauchst du Tipps?\n\nIch gebe dir Plattformempfehlungen, Sourcing-Tipps und Gehaltsrahmen.`,
+    };
+    return map[action] || map.strategy;
+}
 
-    if (!res.ok) {
-        let errMsg = `HTTP ${res.status}`;
-        try {
-            const body = await res.json();
-            errMsg = body.error?.message || errMsg;
-        } catch (_) {}
-        throw new Error(errMsg);
+function handleBooleanIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (!roleKey) {
+        agentState.flow = 'boolean_ask_role';
+        return `Ich habe keinen bekannten Jobtitel erkannt. Versuche es mit:\n- "Senior Java Developer"\n- "UX Designer"\n- "DevOps Engineer AWS"\n- "HR Manager"\n- "Fachinformatiker Systemintegration"\n\n**Für welche Stelle suchst du?**`;
     }
+    const seniority = detectSeniority(lower);
+    const platform = detectPlatform(lower);
+    const role = ROLE_KB[roleKey];
+    const boolStr = buildBooleanFromRole(roleKey, seniority, platform);
 
-    const data = await res.json();
-    return data.content[0].text;
+    return `## 🔍 Boolean-Suchstring: ${role.titles[0]}
+
+**Plattform:** ${platform.charAt(0).toUpperCase() + platform.slice(1)} | **Seniority:** ${seniority}
+
+\`\`\`
+${boolStr}
+\`\`\`
+
+**Empfohlene Plattformen:** ${role.platforms.join(', ')}
+
+**Sourcing-Tipp:** ${role.tip}
+
+---
+Varianten: *"Für Google X-Ray"*, *"Senior-Variante"*, *"XING-Version"*, *"Anschreiben dazu schreiben"*`;
+}
+
+function handleOutreachIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (!roleKey) {
+        agentState.flow = 'outreach_ask_role';
+        return `Für welche Rolle möchtest du eine Outreach-Nachricht schreiben? (z.B. "Java Developer", "DevOps Engineer", "HR Manager")`;
+    }
+    const role = ROLE_KB[roleKey];
+    return `## ✉️ InMail-Vorlage: ${role.titles[0]}
+
+---
+Hallo [VORNAME],
+
+Ihr Profil als [AKTUELLE ROLLE] hat sofort meine Aufmerksamkeit geweckt – besonders Ihre Erfahrung im Bereich **${role.titles[0]}**.
+
+Ich recruite aktuell eine spannende **${role.titles[0]}**-Position bei [UNTERNEHMEN]:
+
+✅ [HIGHLIGHT 1 – z.B. moderner Tech-Stack / Produkt]
+✅ [HIGHLIGHT 2 – z.B. Remote/Hybrid-Option]
+✅ [HIGHLIGHT 3 – z.B. Teamgröße, Impact, Wachstum]
+
+Wäre ein kurzes 15-minütiges Gespräch diese Woche für Sie interessant?
+
+Mit freundlichen Grüßen,
+[IHR NAME] | [KONTAKT]
+
+---
+
+**💡 Tipps für hohe Rücklaufquote:**
+- 1 konkretes Detail aus dem Profil nennen ("Ihr Artikel über X hat mich beeindruckt")
+- Unter 150 Wörter halten
+- Konkrete Gehaltsspanne nennen (erhöht Response Rate um ~30 %)
+- Versandzeit: Di–Do, 9–11 Uhr`;
+}
+
+function handleInterviewIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (!roleKey) {
+        agentState.flow = 'interview_ask_role';
+        return `Für welche Rolle soll ich Interviewfragen erstellen? (z.B. "Senior Java Developer", "Product Manager", "UX Designer")`;
+    }
+    const role = ROLE_KB[roleKey];
+    const q = getInterviewQuestions(roleKey);
+    return `## 🎯 Interviewfragen: ${role.titles[0]}
+
+### Fachkompetenz
+${q.technical.map(x => `- ${x}`).join('\n')}
+
+### Verhalten & Soft Skills
+${q.behavioral.map(x => `- ${x}`).join('\n')}
+
+### Kulturfit & Motivation
+${q.culture.map(x => `- ${x}`).join('\n')}
+
+### Rollenspezifisch
+${q.roleSpecific.map(x => `- ${x}`).join('\n')}
+
+---
+**💡 STAR-Methode** für Verhaltensfragen: Situation → Task → Action → Result`;
+}
+
+function handleJobpostIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    const role = roleKey ? ROLE_KB[roleKey] : null;
+    const title = role ? role.titles[0] : '[JOBTITEL]';
+    const must = role ? role.mustSkills.join(', ') : '[CORE SKILL]';
+    const nice = role ? role.niceSkills.slice(0, 3).join(', ') : '[WEITERE SKILLS]';
+    const salary = role ? role.salary : '[GEHALTSRANGE]';
+
+    return `## 📝 Stellenausschreibung: ${title}
+
+---
+**${title} (m/w/d) – [UNTERNEHMEN]**
+
+🚀 **Deine Aufgaben**
+- [HAUPTAUFGABE 1]
+- [HAUPTAUFGABE 2]
+- [HAUPTAUFGABE 3]
+- [HAUPTAUFGABE 4]
+
+✅ **Das bringst du mit**
+- Fundierte Kenntnisse in ${must}
+- Erfahrung mit ${nice} – von Vorteil
+- [X] Jahre Berufserfahrung in [BEREICH]
+- Teamfähigkeit und eigenverantwortliche Arbeitsweise
+
+🎁 **Das bieten wir**
+- ${salary} p.a. (je nach Erfahrung)
+- Remote/Hybrid – [X] Tage Home Office
+- [BENEFIT 1 – z.B. Weiterbildungsbudget 2.000 €/Jahr]
+- [BENEFIT 2 – z.B. Urban Sports Club / EGYM Wellpass]
+- [BENEFIT 3 – z.B. Deutschlandticket / Jobrad]
+
+📍 **Standort:** [STADT] oder Remote
+
+---
+**💡 Tipps für bessere Bewerbungsquoten:**
+- Gehaltsrahmen nennen (+30 % mehr Bewerbungen)
+- Max. 6 Must-Have-Anforderungen (nicht 15!)
+- Echte Benefits, keine Floskeln ("flache Hierarchien")
+- Inklusive Sprache (m/w/d oder *)`;
+}
+
+function handleScreenIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    const role = roleKey ? ROLE_KB[roleKey] : null;
+    const mustList = role ? role.mustSkills.map(s => `- ☐ **${s}** vorhanden?`).join('\n') : '- ☐ Kernkompetenz vorhanden?';
+    const niceList = role ? role.niceSkills.slice(0, 4).map(s => `- ☐ ${s}`).join('\n') : '- ☐ Nice-to-Have Skills';
+
+    return `## 👤 Screening-Checkliste${role ? ': ' + role.titles[0] : ''}
+
+### Must-Have (K.O.-Kriterien)
+${mustList}
+- ☐ Seniority passt zur Stelle?
+- ☐ Erfahrungsjahre ausreichend?
+
+### Nice-to-Have
+${niceList}
+
+### Allgemeine Kriterien
+- ☐ Karriereverlauf nachvollziehbar?
+- ☐ Keine unerklärten Lücken > 6 Monate?
+- ☐ Stationen zeigen Wachstum?
+- ☐ Standort / Remote-Situation passt?
+- ☐ LinkedIn/GitHub aktiv?
+
+### Scoring
+| Punkte | Bedeutung |
+|--------|-----------|
+| 8–10 | Sofort kontaktieren |
+| 5–7 | Interessant, näher prüfen |
+| 3–4 | Potenzial mit Gap |
+| 0–2 | Nicht geeignet |`;
+}
+
+function handleStrategyIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (!roleKey) {
+        agentState.flow = 'strategy_ask_role';
+        return `Für welche Rolle oder Zielgruppe brauchst du Sourcing-Tipps?\n\nOder stelle mir eine konkrete Frage:\n- "Wie erreiche ich passive Kandidaten?"\n- "Welche Plattform für Data Scientists?"\n- "Wie verbessere ich meine Rücklaufquote?"`;
+    }
+    const role = ROLE_KB[roleKey];
+    return `## 💡 Sourcing-Strategie: ${role.titles[0]}
+
+### Beste Plattformen
+${role.platforms.map(p => `- **${p}**`).join('\n')}
+
+### Sourcing-Tipp
+${role.tip}
+
+### Active Sourcing Empfehlung
+- **Boolean-String** direkt generieren: *"Boolean für ${role.titles[0]}"*
+- **Personalisierung**: 1 konkretes Profil-Detail im ersten Satz des Anschreibens
+- **Timing**: Versende Nachrichten Di–Do zwischen 9 und 11 Uhr
+- **Follow-up**: 1x nach 5–7 Tagen nachhaken (Response Rate +20 %)
+
+### Gehaltsrahmen (DACH)
+💰 ${role.salary}`;
+}
+
+function handleSalaryIntent(lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (!roleKey) {
+        agentState.flow = 'salary_ask_role';
+        return `Für welche Rolle möchtest du den Gehaltsrahmen wissen? (z.B. "Senior Java Developer", "UX Designer", "DevOps Engineer")`;
+    }
+    const role = ROLE_KB[roleKey];
+    const seniority = detectSeniority(lower);
+    const adj = { junior: '−20–25 % vom Midrange', mid: 'entspricht dem Midrange', senior: '+20–30 % über Midrange', manager: '+30–50 % über Midrange' };
+    return `## 💰 Gehaltsrahmen: ${role.titles[0]}
+
+**DACH-Markt:** ${role.salary}
+
+**Seniority (${seniority}):** ${adj[seniority] || adj.mid}
+
+**Regional:**
+- 🏙️ München / Frankfurt: +15–20 %
+- 🏙️ Berlin / Hamburg: +10–15 %
+- 🌍 Remote-first: oft +5–10 % durch nationalen Wettbewerb
+
+*Richtwerte – Abweichungen je nach Unternehmensgröße und Branche möglich.*`;
+}
+
+function handleHelpResponse() {
+    return `## ❓ Was kann ich für dich tun?
+
+| Funktion | Beispiel |
+|----------|---------|
+| 🔍 Boolean-Suche | *"Boolean für Senior Java Developer"* |
+| ✉️ Anschreiben | *"Anschreiben für DevOps Engineer"* |
+| 🎯 Interviewfragen | *"Interviewfragen für Product Manager"* |
+| 📝 Stellenanzeige | *"Stellenanzeige für UX Designer"* |
+| 👤 Screening | *"Screening-Checkliste für Data Scientist"* |
+| 💡 Sourcing-Tipp | *"Strategie für Kubernetes-Experten"* |
+| 💰 Gehalt | *"Gehalt Senior React Developer DACH"* |
+
+Oder nutze die **Schnellaktionen** oben!`;
+}
+
+function handleUnknownIntent(msg, lower) {
+    const roleKey = detectRoleFromText(lower);
+    if (roleKey) {
+        const role = ROLE_KB[roleKey];
+        return `Ich habe erkannt, dass du nach **${role.titles[0]}**-Kandidaten suchst. Was soll ich tun?\n\n- **"Boolean erstellen"** – Suchstring generieren\n- **"Anschreiben"** – InMail-Vorlage\n- **"Interviewfragen"** – Fragenkatalog\n- **"Strategie"** – Sourcing-Tipps\n- **"Gehalt"** – Gehaltsrahmen DACH`;
+    }
+    return `Ich bin nicht sicher, wie ich helfen kann. Versuche:\n\n- *"Boolean für [Rolle]"*\n- *"Anschreiben für [Rolle]"*\n- *"Interviewfragen für [Rolle]"*\n- *"Hilfe"* – alle Funktionen anzeigen`;
+}
+
+function getInterviewQuestions(roleKey) {
+    const behavioral = [
+        'Beschreibe eine Situation, in der du unter starkem Zeitdruck ein Projekt erfolgreich abgeschlossen hast.',
+        'Erzähle von einem Konflikt mit einem Kollegen – wie hast du ihn gelöst?',
+        'Wie gehst du vor, wenn Anforderungen unklar oder widersprüchlich sind?',
+    ];
+    const culture = [
+        'Was motiviert dich beruflich am meisten?',
+        'Wie bevorzugst du zu arbeiten – eigenständig oder im Team?',
+        'Wo siehst du dich in 3 Jahren?',
+    ];
+    const specific = {
+        java: {
+            technical: ['Erkläre den Unterschied zwischen JVM, JDK und JRE.', 'Welche Design Patterns nutzt du und warum?', 'Wie gehst du mit Concurrency um?', 'Erfahrungen mit Spring Boot und Microservices?'],
+            roleSpecific: ['Welche Build-Tools nutzt du (Maven/Gradle)?', 'Wie sieht dein Code-Review-Prozess aus?'],
+        },
+        python: {
+            technical: ['Unterschied zwischen List und Generator?', 'Wie gehst du mit async/await um?', 'Was ist das GIL?', 'Welche Frameworks für REST-APIs?'],
+            roleSpecific: ['Wie testest du Python-Code?', 'Zeige ein Python-Projekt, auf das du stolz bist.'],
+        },
+        frontend: {
+            technical: ['Erkläre Virtual DOM.', 'Unterschied state vs. props?', 'Wie optimierst du Web-Performance?', 'Erfahrungen mit Browser-Kompatibilität?'],
+            roleSpecific: ['Wie arbeitest du mit Designern zusammen?', 'Zeige uns etwas aus deinem Portfolio.'],
+        },
+        devops: {
+            technical: ['Wie baust du eine CI/CD-Pipeline auf?', 'Erkläre Kubernetes Deployments, Services und Ingress.', 'Wie managst du Secrets?', 'Monitoring-Strategie?'],
+            roleSpecific: ['Wie hast du Deployment-Zeiten reduziert?', 'Beschreibe einen kritischen Incident und deine Reaktion.'],
+        },
+        product: {
+            technical: ['Wie priorisierst du den Backlog?', 'Welche Metriken nutzt du?', 'Wie gehst du mit widersprüchlichen Stakeholder-Anforderungen um?', 'A/B-Testing-Erfahrungen?'],
+            roleSpecific: ['Beschreibe ein Produkt, das du von 0 auf 1 gebaut hast.', 'Wie arbeitest du mit Entwicklern zusammen?'],
+        },
+        ux: {
+            technical: ['Wie gestaltest du deinen User-Research-Prozess?', 'Erfahrungen mit Usability-Tests?', 'Wie misst du UX-Erfolg?', 'Design-System-Erfahrungen?'],
+            roleSpecific: ['Zeige 2–3 Case Studies aus deinem Portfolio.', 'Wie überzeugst du Stakeholder von Designentscheidungen?'],
+        },
+        data: {
+            technical: ['Erkläre Overfitting und wie du es vermeidest.', 'Supervised vs. Unsupervised Learning?', 'Umgang mit fehlenden Daten?', 'Welche SQL-Abfragen nutzt du täglich?'],
+            roleSpecific: ['Beschreibe ein ML-Modell, das du in Production gebracht hast.', 'Wie kommunizierst du Ergebnisse an nicht-technische Stakeholder?'],
+        },
+        it_support: {
+            technical: ['Wie gehst du bei einem Netzwerkausfall vor?', 'Erfahrungen mit Active Directory?', 'Welche Ticketing-Systeme hast du genutzt?', 'Erfahrungen mit Windows Server Administration?'],
+            roleSpecific: ['Beschreibe einen komplexen IT-Incident, den du gelöst hast.', 'Wie dokumentierst du IT-Prozesse?'],
+        },
+    };
+    const q = specific[roleKey] || {
+        technical: ['Welche Tools nutzt du täglich?', 'Wie bleibst du fachlich auf dem Laufenden?', 'Was war deine größte Herausforderung und wie hast du sie gelöst?', 'Beschreibe deinen typischen Arbeitstag.'],
+        roleSpecific: ['Warum interessiert dich diese Stelle?', 'Was macht dich besonders geeignet?'],
+    };
+    return { technical: q.technical, behavioral, culture, roleSpecific: q.roleSpecific };
 }
 
 // ---- Message Rendering ----
@@ -1220,16 +1661,16 @@ function buildWelcomeMessageHTML() {
     return `<div class="agent-message assistant-message">
         <div class="agent-avatar">KI</div>
         <div class="message-content">
-            <p>Hallo! Ich bin dein KI-Recruiting-Assistent, angetrieben von Claude. Ich helfe dir bei:</p>
+            <p>Hallo! Ich bin dein <strong>Recruiting-Assistent</strong>. Ich helfe dir sofort &ndash; kein API-Key erforderlich:</p>
             <ul class="agent-list">
-                <li>Boolean-Suchstrings aus Stellenbeschreibungen generieren</li>
-                <li>Personalisierte InMail- &amp; Outreach-Nachrichten schreiben</li>
-                <li>Gezielte Interviewfragen-Sets erstellen</li>
-                <li>Überzeugende Stellenausschreibungen verfassen</li>
-                <li>Kandidatenprofile sichten und bewerten</li>
-                <li>Sourcing- &amp; Recruiting-Strategie beraten</li>
+                <li>&#128269; <strong>Boolean-Suchstrings</strong> &ndash; optimiert f&uuml;r LinkedIn, Google X-Ray &amp; GitHub</li>
+                <li>&#9993; <strong>Outreach-Vorlagen</strong> &ndash; personalisierte InMail-Nachrichten</li>
+                <li>&#127919; <strong>Interviewfragen</strong> &ndash; rollenspezifische Kataloge</li>
+                <li>&#128221; <strong>Stellenausschreibungen</strong> &ndash; moderne Vorlagen</li>
+                <li>&#128100; <strong>Screening-Checklisten</strong> &ndash; strukturierte Kandidatenbewertung</li>
+                <li>&#128161; <strong>Sourcing-Strategie</strong> &ndash; Plattformen, Tipps &amp; Gehaltsrahmen</li>
             </ul>
-            <p>Nutze die Schnellaktionen oben oder tippe deine Frage unten ein!</p>
+            <p>Nutze die <strong>Schnellaktionen</strong> oben oder schreib direkt, f&uuml;r welche Rolle du suchst!</p>
         </div>
     </div>`;
 }
