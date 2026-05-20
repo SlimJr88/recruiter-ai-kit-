@@ -19,6 +19,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="generator">Stellenbeschreibung &rarr; Boolean</button>
             <button class="tab" data-tab="builder">Manueller Builder</button>
+            <button class="tab" data-tab="agent">&#129302; AI Recruiting Agent</button>
         </div>
 
         <!-- TAB 1: Job Description Generator -->
@@ -229,6 +230,116 @@ Standort: Berlin oder München (hybrid)"></textarea>
                 </div>
                 <div class="copy-toast" id="builderCopyToast">Kopiert!</div>
             </section>
+        </div>
+
+        <!-- TAB 3: AI Recruiting Agent -->
+        <div class="tab-content" id="tab-agent">
+
+            <!-- API Setup Card -->
+            <section class="card agent-setup-card">
+                <div class="agent-setup-header" id="agentSetupToggle">
+                    <h2>&#9881; Agent Setup</h2>
+                    <span class="setup-status not-configured" id="setupStatus">API Key Required</span>
+                    <span class="setup-chevron" id="toggleSetupBtn">&#9660;</span>
+                </div>
+                <div class="agent-setup-body" id="agentSetupBody">
+                    <p class="section-hint">
+                        Enter your Anthropic API key to enable AI features. Your key is stored only in your browser
+                        (<code>localStorage</code>) and is sent directly to Anthropic &mdash; never to any third party.
+                    </p>
+                    <div class="api-key-row">
+                        <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-...">
+                        <button class="btn btn-primary" id="saveApiKeyBtn">Save Key</button>
+                        <button class="btn btn-secondary" id="clearApiKeyBtn">Clear</button>
+                    </div>
+                    <div class="model-select-row">
+                        <label>Model:</label>
+                        <select id="modelSelect">
+                            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 &mdash; Fast &amp; Affordable</option>
+                            <option value="claude-sonnet-4-6" selected>Claude Sonnet 4.6 &mdash; Most Capable</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Actions -->
+            <section class="card">
+                <h2>Quick Actions</h2>
+                <div class="quick-actions-grid">
+                    <button class="quick-action-btn" data-action="boolean">
+                        <span class="qa-icon">&#128269;</span>
+                        <span class="qa-label">Boolean Search</span>
+                        <span class="qa-desc">Generate from a job description</span>
+                    </button>
+                    <button class="quick-action-btn" data-action="outreach">
+                        <span class="qa-icon">&#9993;</span>
+                        <span class="qa-label">Outreach Message</span>
+                        <span class="qa-desc">Write InMail or cold email</span>
+                    </button>
+                    <button class="quick-action-btn" data-action="interview">
+                        <span class="qa-icon">&#127919;</span>
+                        <span class="qa-label">Interview Questions</span>
+                        <span class="qa-desc">Role-specific question sets</span>
+                    </button>
+                    <button class="quick-action-btn" data-action="jobpost">
+                        <span class="qa-icon">&#128221;</span>
+                        <span class="qa-label">Job Posting</span>
+                        <span class="qa-desc">Write a compelling JD</span>
+                    </button>
+                    <button class="quick-action-btn" data-action="screen">
+                        <span class="qa-icon">&#128100;</span>
+                        <span class="qa-label">Screen Candidate</span>
+                        <span class="qa-desc">Evaluate a profile or resume</span>
+                    </button>
+                    <button class="quick-action-btn" data-action="strategy">
+                        <span class="qa-icon">&#128161;</span>
+                        <span class="qa-label">Sourcing Strategy</span>
+                        <span class="qa-desc">Tips and best practices</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Chat Window -->
+            <section class="card agent-chat-card">
+                <div class="agent-chat-header">
+                    <h2>AI Recruiting Assistant</h2>
+                    <button class="btn btn-secondary btn-sm" id="resetChatBtn">&#43; New Chat</button>
+                </div>
+
+                <div class="agent-messages" id="agentMessages">
+                    <div class="agent-message assistant-message">
+                        <div class="agent-avatar">AI</div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI Recruiting Assistant powered by Claude. I can help you:</p>
+                            <ul class="agent-list">
+                                <li>Generate Boolean search strings from job descriptions</li>
+                                <li>Write personalized InMail &amp; outreach messages</li>
+                                <li>Create targeted interview question sets</li>
+                                <li>Draft compelling job postings</li>
+                                <li>Screen and evaluate candidate profiles</li>
+                                <li>Advise on sourcing &amp; recruiting strategy</li>
+                            </ul>
+                            <p>Use the Quick Actions above or type your question below to get started!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="agent-typing" id="agentTyping" style="display:none;">
+                    <div class="agent-avatar">AI</div>
+                    <div class="typing-indicator">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+
+                <div class="agent-input-area">
+                    <textarea id="agentInput" rows="3" placeholder="Ask me anything about recruiting&#8230; (Enter to send, Shift+Enter for new line)"></textarea>
+                    <div class="agent-input-actions">
+                        <span class="char-counter" id="charCounter">0</span>
+                        <button class="btn btn-primary" id="agentSendBtn">Send &#9658;</button>
+                    </div>
+                </div>
+            </section>
+
         </div>
 
         <!-- History (shared) -->
